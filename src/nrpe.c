@@ -732,6 +732,8 @@ command *find_command(char *command_name)
 	return NULL;
 }
 
+#define BUF_SIZE 500
+
 /* wait for incoming connection requests */
 void wait_for_connections(void)
 {
@@ -750,54 +752,72 @@ void wait_for_connections(void)
 	struct request_info req;
 #endif
 
-	/* create a socket for listening */
-	sock = socket(AF_INET, SOCK_STREAM, 0);
+	struct addrinfo hints;
+	struct addrinfo *result, *rp;
+	int sfd, s;
+	struct sockaddr_storage peer_addr;
+	socklen_t peer_addr_len;
+	ssize_t nread;
+	char buf[BUF_SIZE];
 
-	/* exit if we couldn't create the socket */
-	if (sock < 0) {
-		syslog(LOG_ERR, "Network server socket failure (%d: %s)", errno,
-		       strerror(errno));
-		exit(STATE_CRITICAL);
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_protocol = 0;
+	hints.ai_canonname = NULL;
+	hints.ai_addr = NULL;
+	hints.ai_next = NULL;
+
+	/*
+	 * FIXME: Need to fix the port-crud too. -K
+	 */
+	s = getaddrinfo(server_address, "5666", &hints, &result);
+	if (s != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+		exit(EXIT_FAILURE);
 	}
 
-	/* socket should be non-blocking */
-	fcntl(sock, F_SETFL, O_NONBLOCK);
+	/*
+	 * getaddrinfo() returns a list of address structures.
+	 * Try each address until we successfully bind(2).
+	 * If socket(2) (or bind(2)) fails, we (close the socket
+	 * and) try the next address. 
+	 */
 
-	/* set the reuse address flag so we don't get errors when restarting */
-	flag = 1;
-	if (setsockopt
-	    (sock, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag)) < 0) {
-		syslog(LOG_ERR,
-		       "Could not set reuse address option on socket!\n");
-		exit(STATE_UNKNOWN);
+	for (rp = result; rp != NULL; rp = rp->ai_next) {
+		sock = socket(rp->ai_family, rp->ai_socktype,
+				rp->ai_protocol);
+		if (sock == -1)
+			continue;
+		
+		/* socket should be non-blocking */
+		fcntl(sock, F_SETFL, O_NONBLOCK);
+
+		/* set the reuse address flag so we don't get errors when restarting */
+		flag = 1;
+		if (setsockopt (sock, SOL_SOCKET, SO_REUSEADDR, (char
+			*)&flag, sizeof(flag)) < 0) {
+			syslog(LOG_ERR,
+					"Could not set reuse address option on socket!\n");
+			exit(STATE_UNKNOWN);
+		}
+
+		if (bind(sock, rp->ai_addr, rp->ai_addrlen) == 0) {
+			if (listen(sock, 5) != -1) {
+				break;
+			}
+		}
+
+		close(sock);
 	}
 
-	myname.sin_family = AF_INET;
-	myname.sin_port = htons(server_port);
-	bzero(&myname.sin_zero, 8);
-
-	/* what address should we bind to? */
-	if (!strlen(server_address))
-		myname.sin_addr.s_addr = INADDR_ANY;
-
-	else if (!my_inet_aton(server_address, &myname.sin_addr)) {
-		syslog(LOG_ERR, "Server address is not a valid IP address\n");
-		exit(STATE_CRITICAL);
+	if (rp == NULL) {               /* No address succeeded */
+		fprintf(stderr, "Could not bind\n");
+		exit(EXIT_FAILURE);
 	}
 
-	/* bind the address to the Internet socket */
-	if (bind(sock, (struct sockaddr *)&myname, sizeof(myname)) < 0) {
-		syslog(LOG_ERR, "Network server bind failure (%d: %s)\n", errno,
-		       strerror(errno));
-		exit(STATE_CRITICAL);
-	}
-
-	/* open the socket for listening */
-	if (listen(sock, 5) < 0) {
-		syslog(LOG_ERR, "Network server listen failure (%d: %s)\n",
-		       errno, strerror(errno));
-		exit(STATE_CRITICAL);
-	}
+	freeaddrinfo(result);           /* No longer needed */
 
 	/* log warning about command arguments */
 #ifdef ENABLE_COMMAND_ARGUMENTS
