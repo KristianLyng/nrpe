@@ -37,7 +37,6 @@
 #define STATE_WARNING 	1
 #define STATE_OK       	0
 
-
 #define DEFAULT_SOCKET_TIMEOUT	10	/* timeout after 10 seconds */
 #define DEFAULT_CONNECTION_TIMEOUT 300	/* timeout if daemon is waiting for connection more than this time */
 
@@ -50,22 +49,21 @@
 
 #define MAX_COMMAND_ARGUMENTS   16
 
-
 /**************** PACKET STRUCTURE DEFINITION **********/
 
-#define QUERY_PACKET		1		/* id code for a packet containing a query */
-#define	RESPONSE_PACKET		2		/* id code for a packet containing a response */
+#define QUERY_PACKET		1	/* id code for a packet containing a query */
+#define	RESPONSE_PACKET		2	/* id code for a packet containing a response */
 
-#define NRPE_PACKET_VERSION_3   3               /* packet version identifier */
-#define NRPE_PACKET_VERSION_2   2               
-#define NRPE_PACKET_VERSION_1	1		/* older packet version identifiers (no longer supported) */
+#define NRPE_PACKET_VERSION_3   3	/* packet version identifier */
+#define NRPE_PACKET_VERSION_2   2
+#define NRPE_PACKET_VERSION_1	1	/* older packet version identifiers (no longer supported) */
 
-#define MAX_PACKETBUFFER_LENGTH	1024		/* max amount of data we'll send in one query/response */
+#define MAX_PACKETBUFFER_LENGTH	1024	/* max amount of data we'll send in one query/response */
 
-typedef struct packet_struct{
-	int16_t   packet_version;
-	int16_t   packet_type;
+typedef struct packet_struct {
+	int16_t packet_version;
+	int16_t packet_type;
 	u_int32_t crc32_value;
-	int16_t   result_code;
-	char      buffer[MAX_PACKETBUFFER_LENGTH];
-        }packet;
+	int16_t result_code;
+	char buffer[MAX_PACKETBUFFER_LENGTH];
+} packet;
