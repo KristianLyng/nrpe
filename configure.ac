@@ -2,11 +2,11 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.67])
-AC_INIT([nrpe], [1.1], [tmp])
+AC_INIT([nrpe], [3.0], [https://github.com/KristianLyng/nrpe])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
 
-AM_INIT_AUTOMAKE(nrpe, 1.1, [-Wall -Werror foreign])
+AM_INIT_AUTOMAKE(nrpe, 3.0, [-Wall -Werror foreign])
 AM_CFLAGS="-Wall -Werror"
 PKG_CHECK_MODULES([SSL], [openssl],[AC_DEFINE([HAVE_SSL],[1],[Define we have SSL])],[AC_MSG_ERROR([nrpe requires ssl.])])
 
