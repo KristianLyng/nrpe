@@ -2,28 +2,28 @@
  * check_nrpe.c - NRPE Plugin For Nagios
  * Copyright (c) 1999-2008 Ethan Galstad (nagios@nagios.org)
  * Copyright (c) 2011 Kristian Lyngstol <kristian@bohemians.org>
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
- 
+
 /*
  * XXX: I've inserted the GPLv2+ header as it was missing and only "GPL"
  * XXX: was mentioned. This was chosen as the GPLv2+-header is present
  * XXX: elsewhere in nrpe. It is presumed to apply to the existing code,
- * XXX: and it applies to my contributions as well. 
+ * XXX: and it applies to my contributions as well.
  * XXX:    - Kristian Lyngstol, March, 2011
  *
  * This plugin will attempt to connect to the NRPE daemon on the specified server and port.
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 		printf("\n");
 	}
 
-	if (result != OK || show_help == TRUE) 
+	if (result != OK || show_help == TRUE)
 		usage();	
 
 	if (show_license == TRUE)

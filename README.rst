@@ -48,7 +48,7 @@ also not tested this on other platforms than Debian at the moment.
 
 
 .. warning::
-   
+
    The following is OLD (i.e., pre-"3.0"-work)
 
 
@@ -56,12 +56,12 @@ Further documentation
 =====================
 
 For installation instructions and information on the design overview
-of the NRPE addon, please read the PDF documentation that is found in 
+of the NRPE addon, please read the PDF documentation that is found in
 this directory: NRPE.pdf
 
 Purpose
 =======
-The purpose of this addon is to allow you to execute Nagios 
+The purpose of this addon is to allow you to execute Nagios
 plugins on a remote host in as transparent a manner as possible.
 
 
@@ -71,13 +71,13 @@ Contents
 There are two pieces to this addon:
 
 1. NRPE
-       - This program runs as a background process on the 
+       - This program runs as a background process on the
          remote host and processes command execution requests
          from the check_nrpe plugin on the Nagios host.
          Upon receiving a plugin request from an authorized
          host, it will execute the command line associated
          with the command name it received and send the
-         program output and return code back to the 
+         program output and return code back to the
          check_nrpe plugin
 
 2. check_nrpe
@@ -140,7 +140,7 @@ ignored.
 
 INETD
 .....
-   
+
 If your system uses the inetd superserver WITH tcpwrappers, add an
 entry to /etc/inetd.conf as follows::
 
@@ -173,7 +173,7 @@ directory that contains the following entries::
 	service nrpe
 	{
         	flags           = REUSE
-	        socket_type     = stream        
+	        socket_type     = stream
         	wait            = no
 	        user            = <user>
         	server          = <nrpebin>
@@ -240,8 +240,8 @@ is simplified for this example)::
                 ... etc ...
         }
 
-where "yourcommand" is a name of a command that you define in 
-your nrpe.cfg file on the remote host (see the docs in the 
+where "yourcommand" is a name of a command that you define in
+your nrpe.cfg file on the remote host (see the docs in the
 sample nrpe.cfg file for more information).
 
 
@@ -250,7 +250,7 @@ Questions?
 
 If you have questions about this addon, or problems getting things
 working, first try searching the nagios-users mailing list archives.
-Details on searching the list archives can be found at 
+Details on searching the list archives can be found at
 http://www.nagios.org
 
 If all else fails, you can email me and I'll try and respond as

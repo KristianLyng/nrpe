@@ -22,7 +22,7 @@
 
  /*
   * This file contains common network functions used in nrpe and check_nrpe.
-  * 
+  *
   * XXX: Much legacy or redundant. Fixing it as I go. -K
   *
   */
