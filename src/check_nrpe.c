@@ -1,32 +1,50 @@
-/********************************************************************************************
- *
- * CHECK_NRPE.C - NRPE Plugin For Nagios
+/*
+ * check_nrpe.c - NRPE Plugin For Nagios
  * Copyright (c) 1999-2008 Ethan Galstad (nagios@nagios.org)
- * License: GPL
+ * Copyright (c) 2011 Kristian Lyngstol <kristian@bohemians.org>
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Last Modified: 03-10-2008
- *
- * Command line: CHECK_NRPE -H <host_address> [-p port] [-c command] [-to to_sec]
- *
- * Description:
+ */
+ 
+/*
+ * XXX: I've inserted the GPLv2+ header as it was missing and only "GPL"
+ * XXX: was mentioned. This was chosen as the GPLv2+-header is present
+ * XXX: elsewhere in nrpe. It is presumed to apply to the existing code,
+ * XXX: and it applies to my contributions as well. 
+ * XXX:    - Kristian Lyngstol, March, 2011
  *
  * This plugin will attempt to connect to the NRPE daemon on the specified server and port.
  * The daemon will attempt to run the command defined as [command].  Program output and
  * return code are sent back from the daemon and displayed as this plugin's own output and
  * return code.
  *
- ********************************************************************************************/
+ * Command line: CHECK_NRPE -H <host_address> [-p port] [-c command] [-to to_sec]
+ *
+ */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <unistd.h>
-#include <string.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netdb.h>
+#include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "config.h"
@@ -62,6 +80,34 @@ int process_arguments(int, char **);
 void alarm_handler(int);
 int graceful_close(int, int);
 
+static void usage(void)
+{
+	printf ("Usage: check_nrpe -H <host> [-n] [-u] [-p <port>] [-t <timeout>] [-c <command>] [-a <arglist...>]\n");
+	printf("\n");
+	printf("Options:\n");
+	printf(" -n         = Do no use SSL\n");
+	printf (" -u         = Make socket timeouts return an UNKNOWN state instead of CRITICAL\n");
+	printf (" <host>     = The address of the host running the NRPE daemon\n");
+	printf (" [port]     = The port on which the daemon is running (default=%d)\n",
+		 DEFAULT_SERVER_PORT);
+	printf (" [timeout]  = Number of seconds before connection times out (default=%d)\n",
+		 DEFAULT_SOCKET_TIMEOUT);
+	printf (" [command]  = The name of the command that the remote daemon should run\n");
+	printf (" [arglist]  = Optional arguments that should be passed to the command.  Multiple\n");
+	printf ("              arguments should be separated by a space.  If provided, this must be\n");
+	printf ("              the last option supplied on the command line.\n");
+	printf("\n");
+	printf("Note:\n");
+	printf ("This plugin requires that you have the NRPE daemon running on the remote host.\n");
+	printf ("You must also have configured the daemon to associate a specific plugin command\n");
+	printf ("with the [command] option you are specifying here.  Upon receipt of the\n");
+	printf ("[command] argument, the NRPE daemon will run the appropriate plugin command and\n");
+	printf ("send the plugin output and return code back to *this* plugin.  This allows you\n");
+	printf ("to execute plugins on remote hosts and 'fake' the results to make Nagios think\n");
+	printf("the plugin is being run locally.\n");
+	printf("\n");
+}
+
 int main(int argc, char **argv)
 {
 	uint32_t packet_crc32;
@@ -94,48 +140,8 @@ int main(int argc, char **argv)
 		printf("\n");
 	}
 
-	if (result != OK || show_help == TRUE) {
-
-		printf
-		    ("Usage: check_nrpe -H <host> [-n] [-u] [-p <port>] [-t <timeout>] [-c <command>] [-a <arglist...>]\n");
-		printf("\n");
-		printf("Options:\n");
-		printf(" -n         = Do no use SSL\n");
-		printf
-		    (" -u         = Make socket timeouts return an UNKNOWN state instead of CRITICAL\n");
-		printf
-		    (" <host>     = The address of the host running the NRPE daemon\n");
-		printf
-		    (" [port]     = The port on which the daemon is running (default=%d)\n",
-		     DEFAULT_SERVER_PORT);
-		printf
-		    (" [timeout]  = Number of seconds before connection times out (default=%d)\n",
-		     DEFAULT_SOCKET_TIMEOUT);
-		printf
-		    (" [command]  = The name of the command that the remote daemon should run\n");
-		printf
-		    (" [arglist]  = Optional arguments that should be passed to the command.  Multiple\n");
-		printf
-		    ("              arguments should be separated by a space.  If provided, this must be\n");
-		printf
-		    ("              the last option supplied on the command line.\n");
-		printf("\n");
-		printf("Note:\n");
-		printf
-		    ("This plugin requires that you have the NRPE daemon running on the remote host.\n");
-		printf
-		    ("You must also have configured the daemon to associate a specific plugin command\n");
-		printf
-		    ("with the [command] option you are specifying here.  Upon receipt of the\n");
-		printf
-		    ("[command] argument, the NRPE daemon will run the appropriate plugin command and\n");
-		printf
-		    ("send the plugin output and return code back to *this* plugin.  This allows you\n");
-		printf
-		    ("to execute plugins on remote hosts and 'fake' the results to make Nagios think\n");
-		printf("the plugin is being run locally.\n");
-		printf("\n");
-	}
+	if (result != OK || show_help == TRUE) 
+		usage();	
 
 	if (show_license == TRUE)
 		display_license();
@@ -292,7 +298,7 @@ int main(int argc, char **argv)
 		/* receive underflow */
 		else if (bytes_to_recv < sizeof(receive_packet)) {
 			printf
-			    ("CHECK_NRPE: Receive underflow - only %d bytes received (%d expected).\n",
+			    ("CHECK_NRPE: Receive underflow - only %d bytes received (%lu expected).\n",
 			     bytes_to_recv, sizeof(receive_packet));
 			return STATE_UNKNOWN;
 		}
@@ -459,9 +465,8 @@ int process_arguments(int argc, char **argv)
 	return OK;
 }
 
-void alarm_handler(int sig)
+void alarm_handler(int __attribute__((unused)) sig)
 {
-
 	printf("CHECK_NRPE: Socket timeout after %d seconds.\n",
 	       socket_timeout);
 

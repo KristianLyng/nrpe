@@ -27,18 +27,18 @@
   *
   */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <unistd.h>
-#include <string.h>
 #include <arpa/inet.h>
-#include <time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
 #include <errno.h>
+#include <netdb.h>
+#include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "utils.h"
@@ -129,9 +129,7 @@ int my_tcp_connect(char *host_name, int port, int *sd)
 {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
-	int sfd, s, j;
-	size_t len;
-	ssize_t nread;
+	int sfd, s;
 	char strport[10];
 
 	s = snprintf(strport,10,"%d",port);

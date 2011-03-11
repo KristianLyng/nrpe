@@ -1,14 +1,32 @@
-/*******************************************************************************
+/*
+ * nrpe.c - Nagios Remote Plugin Executor
  *
- * NRPE.C - Nagios Remote Plugin Executor
  * Copyright (c) 1999-2008 Ethan Galstad (nagios@nagios.org)
- * License: GPL
+ * Copyright (c) 2011 Kristian Lyngstol <kristian@bohemians.org>
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Last Modified: 03-10-2008
+ */
+ 
+/*
+ * XXX: I've inserted the GPLv2+ header as it was missing and only "GPL"
+ * XXX: was mentioned. This was chosen as the GPLv2+-header is present
+ * XXX: elsewhere in nrpe. It is presumed to apply to the existing code,
+ * XXX: and it applies to my contributions as well. 
+ * XXX:    - Kristian Lyngstol, March, 2011
  *
- * Command line: nrpe -c <config_file> [--inetd | --daemon]
- *
- * Description:
  *
  * This program is designed to run as a background process and
  * handle incoming requests (from the host running Nagios) for
@@ -16,34 +34,30 @@
  * such as check_users, check_load, check_disk, etc. without
  * having to use rsh or ssh.
  * 
- ******************************************************************************/
+ * Command line: nrpe -c <config_file> [--inetd | --daemon]
+ */
 
 #define _GNU_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <unistd.h>
-#include <string.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <syslog.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <ctype.h>
-#include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <netdb.h>
+#include <pwd.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <syslog.h>
 #include <time.h>
-#include <sys/types.h>
-#include <grp.h>
-#include <sys/types.h>
-#include <pwd.h>
+#include <unistd.h>
 
-#include <netdb.h>
 #include "common.h"
 #include "config.h"
 #include "nrpe.h"
@@ -129,6 +143,109 @@ int show_license = FALSE;
 int show_version = FALSE;
 int use_inetd = TRUE;
 int debug = FALSE;
+
+/*
+ * Check if we are running as root, exit if true, return OK if not.
+ */
+static int check_privileges(void)
+{
+	uid_t uid = -1;
+	gid_t gid = -1;
+
+	uid = geteuid();
+	gid = getegid();
+
+	if (uid == 0 || gid == 0) {
+		syslog(LOG_ERR,
+		       "Error: NRPE daemon cannot be run as user/group root!");
+		exit(STATE_CRITICAL);
+	}
+
+	return OK;
+}
+
+/* drops privileges */
+static int drop_privileges(char *user, char *group)
+{
+	uid_t uid = -1;
+	gid_t gid = -1;
+	struct group *grp;
+	struct passwd *pw;
+
+	/* set effective group ID */
+	if (group != NULL) {
+
+		/* see if this is a group name */
+		if (strspn(group, "0123456789") < strlen(group)) {
+			grp = (struct group *)getgrnam(group);
+			if (grp != NULL)
+				gid = (gid_t) (grp->gr_gid);
+			else
+				syslog(LOG_ERR,
+				       "Warning: Could not get group entry for '%s'",
+				       group);
+			endgrent();
+		}
+
+		/* else we were passed the GID */
+		else
+			gid = (gid_t) atoi(group);
+
+		/* set effective group ID if other than current EGID */
+		if (gid != getegid()) {
+
+			if (setgid(gid) == -1)
+				syslog(LOG_ERR,
+				       "Warning: Could not set effective GID=%d",
+				       (int)gid);
+		}
+	}
+
+	/* set effective user ID */
+	if (user != NULL) {
+
+		/* see if this is a user name */
+		if (strspn(user, "0123456789") < strlen(user)) {
+			pw = (struct passwd *)getpwnam(user);
+			if (pw != NULL)
+				uid = (uid_t) (pw->pw_uid);
+			else
+				syslog(LOG_ERR,
+				       "Warning: Could not get passwd entry for '%s'",
+				       user);
+			endpwent();
+		}
+
+		/* else we were passed the UID */
+		else
+			uid = (uid_t) atoi(user);
+
+		/* set effective user ID if other than current EUID */
+		if (uid != geteuid()) {
+
+#ifdef HAVE_INITGROUPS
+			/* initialize supplementary groups */
+			if (initgroups(user, gid) == -1) {
+				if (errno == EPERM)
+					syslog(LOG_ERR,
+					       "Warning: Unable to change supplementary groups using initgroups()");
+				else {
+					syslog(LOG_ERR,
+					       "Warning: Possibly root user failed dropping privileges with initgroups()");
+					return ERROR;
+				}
+			}
+#endif
+
+			if (setuid(uid) == -1)
+				syslog(LOG_ERR,
+				       "Warning: Could not set effective UID=%d",
+				       (int)uid);
+		}
+	}
+
+	return OK;
+}
 
 int main(int argc, char **argv)
 {
@@ -256,10 +373,7 @@ int main(int argc, char **argv)
 		config_file[sizeof(config_file) - 1] = '\x0';
 	}
 
-	/* read the config file */
 	result = read_config_file(config_file);
-
-	/* exit if there are errors... */
 	if (result == ERROR) {
 		syslog(LOG_ERR,
 		       "Config file '%s' contained errors, aborting...",
@@ -267,7 +381,6 @@ int main(int argc, char **argv)
 		return STATE_CRITICAL;
 	}
 
-	/* generate the CRC 32 table */
 	generate_crc32_table();
 
 	/* initialize macros */
@@ -329,22 +442,13 @@ int main(int argc, char **argv)
 	}
 #endif
 
-	/* if we're running under inetd... */
 	if (use_inetd == TRUE) {
 
-		/* make sure we're not root */
 		check_privileges();
-
-		/* redirect STDERR to /dev/null */
 		close(2);
 		open("/dev/null", O_WRONLY);
-
-		/* handle the connection */
 		handle_connection(0);
-	}
-
-	/* else daemonize and start listening for requests... */
-	else if (fork() == 0) {
+	} else if (fork() == 0) {
 
 		/* we're a daemon - set up a new process group */
 		setsid();
@@ -354,7 +458,10 @@ int main(int argc, char **argv)
 		close(1);
 		close(2);
 
-		/* redirect standard descriptors to /dev/null */
+		/* 
+		 * redirect standard descriptors to /dev/null 
+		 * FIXME: Waaay too implicit.
+		 */
 		open("/dev/null", O_RDONLY);
 		open("/dev/null", O_WRONLY);
 		open("/dev/null", O_WRONLY);
@@ -362,42 +469,26 @@ int main(int argc, char **argv)
 		chdir("/");
 		/*umask(0); */
 
-		/* handle signals */
 		signal(SIGQUIT, sighandler);
 		signal(SIGTERM, sighandler);
 		signal(SIGHUP, sighandler);
 
-		/* log info to syslog facility */
 		syslog(LOG_NOTICE, "Starting up daemon");
 
-		/* write pid file */
 		if (write_pid_file() == ERROR)
 			return STATE_CRITICAL;
 
-		/* drop privileges */
 		drop_privileges(nrpe_user, nrpe_group);
-
-		/* make sure we're not root */
 		check_privileges();
 
 		do {
-
-			/* reset flags */
 			sigrestart = FALSE;
 			sigshutdown = FALSE;
-
-			/* wait for connections */
 			wait_for_connections();
-
-			/* free all memory we allocated */
 			free_memory();
 
 			if (sigrestart == TRUE) {
-
-				/* read the config file */
 				result = read_config_file(config_file);
-
-				/* exit if there are errors... */
 				if (result == ERROR) {
 					syslog(LOG_ERR,
 					       "Config file '%s' contained errors, bailing out...",
@@ -408,9 +499,7 @@ int main(int argc, char **argv)
 
 		} while (sigrestart == TRUE && sigshutdown == FALSE);
 
-		/* remove pid file */
 		remove_pid_file();
-
 		syslog(LOG_NOTICE, "Daemon shutdown\n");
 	}
 #ifdef HAVE_SSL
@@ -1647,7 +1736,7 @@ int my_system(char *command, int timeout, int *early_timeout, char *output,
 }
 
 /* handle timeouts when executing commands via my_system() */
-void my_system_sighandler(int sig)
+void my_system_sighandler(int __attribute__((unused)) sig)
 {
 
 	/* force the child process to exit... */
@@ -1655,96 +1744,13 @@ void my_system_sighandler(int sig)
 }
 
 /* handle errors where connection takes too long */
-void my_connection_sighandler(int sig)
+void my_connection_sighandler(int __attribute__((unused)) sig)
 {
 
 	syslog(LOG_ERR,
 	       "Connection has taken too long to establish. Exiting...");
 
 	exit(STATE_CRITICAL);
-}
-
-/* drops privileges */
-int drop_privileges(char *user, char *group)
-{
-	uid_t uid = -1;
-	gid_t gid = -1;
-	struct group *grp;
-	struct passwd *pw;
-
-	/* set effective group ID */
-	if (group != NULL) {
-
-		/* see if this is a group name */
-		if (strspn(group, "0123456789") < strlen(group)) {
-			grp = (struct group *)getgrnam(group);
-			if (grp != NULL)
-				gid = (gid_t) (grp->gr_gid);
-			else
-				syslog(LOG_ERR,
-				       "Warning: Could not get group entry for '%s'",
-				       group);
-			endgrent();
-		}
-
-		/* else we were passed the GID */
-		else
-			gid = (gid_t) atoi(group);
-
-		/* set effective group ID if other than current EGID */
-		if (gid != getegid()) {
-
-			if (setgid(gid) == -1)
-				syslog(LOG_ERR,
-				       "Warning: Could not set effective GID=%d",
-				       (int)gid);
-		}
-	}
-
-	/* set effective user ID */
-	if (user != NULL) {
-
-		/* see if this is a user name */
-		if (strspn(user, "0123456789") < strlen(user)) {
-			pw = (struct passwd *)getpwnam(user);
-			if (pw != NULL)
-				uid = (uid_t) (pw->pw_uid);
-			else
-				syslog(LOG_ERR,
-				       "Warning: Could not get passwd entry for '%s'",
-				       user);
-			endpwent();
-		}
-
-		/* else we were passed the UID */
-		else
-			uid = (uid_t) atoi(user);
-
-		/* set effective user ID if other than current EUID */
-		if (uid != geteuid()) {
-
-#ifdef HAVE_INITGROUPS
-			/* initialize supplementary groups */
-			if (initgroups(user, gid) == -1) {
-				if (errno == EPERM)
-					syslog(LOG_ERR,
-					       "Warning: Unable to change supplementary groups using initgroups()");
-				else {
-					syslog(LOG_ERR,
-					       "Warning: Possibly root user failed dropping privileges with initgroups()");
-					return ERROR;
-				}
-			}
-#endif
-
-			if (setuid(uid) == -1)
-				syslog(LOG_ERR,
-				       "Warning: Could not set effective UID=%d",
-				       (int)uid);
-		}
-	}
-
-	return OK;
 }
 
 /* write an optional pid file */
@@ -1823,23 +1829,6 @@ int remove_pid_file(void)
 	return OK;
 }
 
-/* bail if daemon is running as root */
-int check_privileges(void)
-{
-	uid_t uid = -1;
-	gid_t gid = -1;
-
-	uid = geteuid();
-	gid = getegid();
-
-	if (uid == 0 || gid == 0) {
-		syslog(LOG_ERR,
-		       "Error: NRPE daemon cannot be run as user/group root!");
-		exit(STATE_CRITICAL);
-	}
-
-	return OK;
-}
 
 /* handle signals (parent process) */
 void sighandler(int sig)
@@ -1882,18 +1871,13 @@ void sighandler(int sig)
 	return;
 }
 
-/* handle signals (child processes) */
-void child_sighandler(int sig)
+/*
+ * Sighandler for children (QUIT,HUP,TERM).
+ * XXX: No point "Freeing memory" right before we exit.
+ */
+void child_sighandler(int __attribute__((unused)) sig)
 {
-
-	/* free all memory we allocated */
-	free_memory();
-
-	/* terminate */
 	exit(0);
-
-	/* so the compiler doesn't complain... */
-	return;
 }
 
 /* tests whether or not a client request is valid */

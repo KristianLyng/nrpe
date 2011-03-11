@@ -1,4 +1,4 @@
-/************************************************************************
+/*
  *
  * NRPE.H - NRPE Include File
  * Copyright (c) 1999-2007 Ethan Galstad (nagios@nagios.org)
@@ -20,9 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- ************************************************************************/
-
-/**************** COMMAND STRUCTURE DEFINITION **********/
+ */
 
 typedef struct command_struct {
 	char *command_name;
@@ -39,8 +37,6 @@ int get_log_facility(char *);
 int add_command(char *, char *);
 command *find_command(char *);
 void sighandler(int);
-int drop_privileges(char *, char *);
-int check_privileges(void);
 
 int write_pid_file(void);
 int remove_pid_file(void);
