@@ -32,7 +32,7 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
-#include "../include/config.h"
+#include "config.h"
 
 void generate_crc32_table(void);
 unsigned long calculate_crc32(char *, int);
@@ -40,11 +40,6 @@ unsigned long calculate_crc32(char *, int);
 void randomize_buffer(char *, int);
 
 int my_tcp_connect(char *, int, int *);
-int my_connect(char *, int, int *, char *);
-
-int my_inet_aton(register const char *, struct in_addr *);
-
-void strip(char *);
 
 int sendall(int, char *, int *);
 int recvall(int, char *, int *, int);

@@ -17,10 +17,23 @@
  *
  ********************************************************************************************/
 
-#include "../include/common.h"
-#include "../include/config.h"
-#include "../include/utils.h"
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
+#include "common.h"
+#include "config.h"
+#include "utils.h"
+#ifdef HAVE_SSL
+#include <openssl/ssl.h>
+#endif
 #define DEFAULT_NRPE_COMMAND	"_NRPE_CHECK"	/* check version of NRPE daemon */
 
 int server_port = DEFAULT_SERVER_PORT;
@@ -51,8 +64,8 @@ int graceful_close(int, int);
 
 int main(int argc, char **argv)
 {
-	u_int32_t packet_crc32;
-	u_int32_t calculated_crc32;
+	uint32_t packet_crc32;
+	uint32_t calculated_crc32;
 	int16_t result;
 	int rc;
 	packet send_packet;

@@ -27,8 +27,21 @@
   *
   */
 
-#include "../include/common.h"
-#include "../include/utils.h"
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <errno.h>
+
+#include "common.h"
+#include "utils.h"
 
 static unsigned long crc32_table[256];
 

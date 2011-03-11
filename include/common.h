@@ -23,9 +23,13 @@
 
 #include "config.h"
 
+#include <stdint.h>
+
 #define PROGRAM_VERSION "2.12"
 #define MODIFICATION_DATE "03-10-2008"
 
+#define DEFAULT_SERVER_PORT	5666
+#define NRPE_LOG_FACILITY	"daemon"
 #define OK		0
 #define ERROR		-1
 
@@ -63,7 +67,7 @@
 typedef struct packet_struct {
 	int16_t packet_version;
 	int16_t packet_type;
-	u_int32_t crc32_value;
+	uint32_t crc32_value;
 	int16_t result_code;
 	char buffer[MAX_PACKETBUFFER_LENGTH];
 } packet;

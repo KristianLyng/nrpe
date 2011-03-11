@@ -18,13 +18,41 @@
  * 
  ******************************************************************************/
 
-#include "../include/common.h"
-#include "../include/config.h"
-#include "../include/nrpe.h"
-#include "../include/utils.h"
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <syslog.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <ctype.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <sys/types.h>
+#include <grp.h>
+#include <sys/types.h>
+#include <pwd.h>
+
+#include <netdb.h>
+#include "common.h"
+#include "config.h"
+#include "nrpe.h"
+#include "utils.h"
 
 #ifdef HAVE_SSL
-#include "../include/dh.h"
+#include <openssl/ssl.h>
+#include <openssl/rand.h>
+#include "dh.h"
 #endif
 
 #ifdef HAVE_LIBWRAP
@@ -36,6 +64,29 @@ int deny_severity = LOG_WARNING;
 SSL_METHOD *meth;
 SSL_CTX *ctx;
 int use_ssl = TRUE;
+DH *get_dh512()
+{
+	static unsigned char dh512_p[]={
+		0xF4,0x73,0x94,0xDB,0x4C,0xFE,0xCE,0xC0,0x19,0xE3,0x6A,0x29,
+		0xD8,0xDD,0x7C,0x84,0x3B,0x3A,0x5C,0x3B,0x8D,0xF7,0x7C,0xA3,
+		0xC2,0x8E,0xFC,0xAC,0x38,0x9D,0x23,0x77,0x6E,0xC7,0x6F,0x94,
+		0x9A,0x46,0x4C,0x84,0x04,0x2D,0x2E,0x10,0x53,0xCF,0x11,0x20,
+		0x2E,0xC0,0x2F,0x50,0x36,0x8F,0xC9,0x4E,0x03,0xCD,0x1F,0x63,
+		0xCB,0xC5,0x5F,0xB3,
+	};
+	static unsigned char dh512_g[]={
+		0x02,
+	};
+	DH *dh;
+
+	if ((dh=DH_new()) == NULL) return(NULL);
+	dh->p=BN_bin2bn(dh512_p,sizeof(dh512_p),NULL);
+	dh->g=BN_bin2bn(dh512_g,sizeof(dh512_g),NULL);
+	if ((dh->p == NULL) || (dh->g == NULL)) {
+		DH_free(dh); return(NULL);
+	}
+	return(dh);
+}
 #else
 int use_ssl = FALSE;
 #endif
