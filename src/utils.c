@@ -109,14 +109,56 @@ void randomize_buffer(char *buffer, int buffer_size)
 	return;
 }
 
+#define BUF_SIZE 500
+
 /* opens a connection to a remote host/tcp port */
 int my_tcp_connect(char *host_name, int port, int *sd)
 {
-	int result;
+	struct addrinfo hints;
+	struct addrinfo *result, *rp;
+	int sfd, s, j;
+	size_t len;
+	ssize_t nread;
+	char buf[BUF_SIZE];
 
-	result = my_connect(host_name, port, sd, "tcp");
+	/* Obtain address(es) matching host/port */
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = 0;
+	hints.ai_protocol = 0;
 
-	return result;
+	/*
+	 * FIXME: Port... -K
+	 */
+	s = getaddrinfo(host_name, "5666", &hints, &result);
+	if (s != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+		exit(EXIT_FAILURE);
+	}
+
+	for (rp = result; rp != NULL; rp = rp->ai_next) {
+		sfd = socket(rp->ai_family, rp->ai_socktype,
+				rp->ai_protocol);
+		if (sfd == -1)
+			continue;
+
+		if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
+			break;                  /* Success */
+
+		close(sfd);
+	}
+
+	if (rp == NULL) {               /* No address succeeded */
+		fprintf(stderr, "Could not connect\n");
+		exit(EXIT_FAILURE);
+	}
+
+	freeaddrinfo(result);           /* No longer needed */
+
+	*sd = sfd;
+
+	return 0;
 }
 
 /* opens a tcp or udp connection to a remote host */
