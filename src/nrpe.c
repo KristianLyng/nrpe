@@ -475,10 +475,11 @@ int main(int argc, char **argv)
 
 		syslog(LOG_NOTICE, "Starting up daemon");
 
+		drop_privileges(nrpe_user, nrpe_group);
+
 		if (write_pid_file() == ERROR)
 			return STATE_CRITICAL;
 
-		drop_privileges(nrpe_user, nrpe_group);
 		check_privileges();
 
 		do {
@@ -1398,6 +1399,11 @@ void handle_connection(int sock)
 
 	/* disable connection alarm - a new alarm will be setup during my_system */
 	alarm(0);
+
+	/*
+	 * Applied from debian-packaging patches. -K
+	 */
+	memset(buffer,0,sizeof(buffer));
 
 	/* if this is the version check command, just spew it out */
 	if (!strcmp(command_name, NRPE_HELLO_COMMAND)) {
