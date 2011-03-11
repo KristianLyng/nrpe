@@ -805,11 +805,7 @@ void wait_for_connections(void)
 
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
-	int sfd, s;
-	struct sockaddr_storage peer_addr;
-	socklen_t peer_addr_len;
-	ssize_t nread;
-	char buf[BUF_SIZE];
+	int s;
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = AF_UNSPEC;
