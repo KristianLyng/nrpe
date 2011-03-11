@@ -1,0 +1,82 @@
+#!/usr/bin/make -f
+
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -O0 -Wall
+else
+	CFLAGS += -O2 -Wall
+endif
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+	INSTALL_PROGRAM += -s
+endif
+
+# These are used for cross-compiling and for saving the configure script
+# from having to guess our platform (since we know it already)
+DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+include /usr/share/dpatch/dpatch.make
+
+fix-configs: fix-configs-stamp
+fix-configs-stamp: configure-stamp
+	sed -i -e '/Last Modified/ d' sample-config/nrpe.cfg
+
+configure: configure-stamp 
+configure-stamp: 
+	dh_testdir
+	ln -sf /usr/share/misc/config.sub .
+	ln -sf /usr/share/misc/config.guess .
+	rm -f config.cache
+	./configure CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" \
+		--prefix=/usr \
+		--sysconfdir=/etc \
+		--localstatedir=/var \
+		--libexecdir=/usr/lib/nagios/plugins \
+		--libdir=/usr/lib/nagios \
+		--enable-command-args
+	touch configure-stamp
+
+build: build-stamp
+build-stamp: patch-stamp configure-stamp 
+	dh_testdir
+	$(MAKE) all
+	touch build-stamp
+
+clean: unpatch
+	dh_testdir
+	dh_testroot
+	if test -f Makefile; then $(MAKE) distclean; fi
+	dh_clean
+	rm -f config.sub config.guess
+	rm -f build-stamp install-stamp fix-configs-stamp configure-stamp
+
+install: install-stamp
+install-stamp: build-stamp fix-configs-stamp
+	dh_testdir
+	dh_testroot
+	dh_clean 
+	dh_installdebconf
+	dh_installdirs
+	dh_installchangelogs Changelog
+	dh_installdocs -A
+	dh_installexamples
+	dh_installinit -u defaults 30
+	dh_installman
+	dh_install
+	touch debian/nagios-nrpe-server/etc/nagios/nrpe_local.cfg
+	touch install-stamp
+
+binary: binary-indep binary-arch
+binary-indep: 
+binary-arch: install-stamp
+	dh_testdir
+	dh_testroot
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+.PHONY: binary binary-arch binary-indep clean install configure

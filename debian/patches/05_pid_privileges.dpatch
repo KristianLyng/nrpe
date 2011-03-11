@@ -1,0 +1,27 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 05_pid_privileges.dpatch by  <luk@luknote>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: No description.
+
+@DPATCH@
+diff -urNad nagios-nrpe-2.12~/src/nrpe.c nagios-nrpe-2.12/src/nrpe.c
+--- nagios-nrpe-2.12~/src/nrpe.c	2009-07-06 10:20:37.000000000 +0200
++++ nagios-nrpe-2.12/src/nrpe.c	2009-07-06 10:22:00.000000000 +0200
+@@ -296,12 +296,13 @@
+ 		/* log info to syslog facility */
+ 		syslog(LOG_NOTICE,"Starting up daemon");
+ 
++				
++		/* drop privileges */
++		drop_privileges(nrpe_user,nrpe_group);
++
+ 		/* write pid file */
+ 		if(write_pid_file()==ERROR)
+ 			return STATE_CRITICAL;
+-		
+-		/* drop privileges */
+-		drop_privileges(nrpe_user,nrpe_group);
+ 
+ 		/* make sure we're not root */
+ 		check_privileges();

@@ -1,0 +1,2 @@
+src/nrpe usr/sbin
+sample-config/nrpe.cfg etc/nagios

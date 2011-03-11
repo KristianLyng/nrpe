@@ -1,0 +1,62 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 01_nodevrandom-and-docoptions.dpatch by  <seanius@localhost.localdomain>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: No description.
+
+@DPATCH@
+diff -urNad nagios-nrpe-2.2~/src/check_nrpe.c nagios-nrpe-2.2/src/check_nrpe.c
+--- nagios-nrpe-2.2~/src/check_nrpe.c	2006-01-21 20:23:36.000000000 +0100
++++ nagios-nrpe-2.2/src/check_nrpe.c	2006-01-24 08:36:39.000000000 +0100
+@@ -93,6 +93,9 @@
+ 		printf(" [arglist]  = Optional arguments that should be passed to the command.  Multiple\n");
+ 		printf("              arguments should be separated by a space.  If provided, this must be\n");
+ 		printf("              the last option supplied on the command line.\n");
++		printf(" -h,--help    Print this short help.\n");
++		printf(" -l,--license Print licensing information.\n");
++		printf(" -n,--no-ssl  Do not initial an ssl handshake with the server, talk in plaintext.\n");
+ 		printf("\n");
+ 		printf("Note:\n");
+ 		printf("This plugin requires that you have the NRPE daemon running on the remote host.\n");
+diff -urNad nagios-nrpe-2.2~/src/nrpe.c nagios-nrpe-2.2/src/nrpe.c
+--- nagios-nrpe-2.2~/src/nrpe.c	2006-01-21 20:23:36.000000000 +0100
++++ nagios-nrpe-2.2/src/nrpe.c	2006-01-24 08:38:30.000000000 +0100
+@@ -120,11 +120,13 @@
+ 		printf("Usage: nrpe [-n] -c <config_file> <mode>\n");
+ 		printf("\n");
+ 		printf("Options:\n");
+-		printf(" -n            = Do not use SSL\n");
++		printf(" -n,--no-ssl   = Do not use SSL\n");
+ 		printf(" <config_file> = Name of config file to use\n");
+ 		printf(" <mode>        = One of the following two operating modes:\n");  
+-		printf("   -i          =    Run as a service under inetd or xinetd\n");
+-		printf("   -d          =    Run as a standalone daemon\n");
++		printf("   -i,--inetd    Run as a service under inetd or xinetd\n");
++		printf("   -d,--daemon   Run as a standalone daemon\n");
++		printf("   -h,--help     Print this short help.\n");
++		printf("   -l,--license  Print licensing information.\n");
+ 		printf("\n");
+ 		printf("Notes:\n");
+ 		printf("This program is designed to process requests from the check_nrpe\n");
+diff -urNad nagios-nrpe-2.2~/src/utils.c nagios-nrpe-2.2/src/utils.c
+--- nagios-nrpe-2.2~/src/utils.c	2003-10-16 01:14:27.000000000 +0200
++++ nagios-nrpe-2.2/src/utils.c	2006-01-24 08:36:39.000000000 +0100
+@@ -90,17 +90,7 @@
+ 	   ends and the rest of the buffer (padded randomly) starts.
+ 	***************************************************************/
+ 
+-	/* try to get seed value from /dev/urandom, as its a better source of entropy */
+-	fp=fopen("/dev/urandom","r");
+-	if(fp!=NULL){
+-		seed=fgetc(fp);
+-		fclose(fp);
+-	        }
+-
+-	/* else fallback to using the current time as the seed */
+-	else
+-		seed=(int)time(NULL);
+-
++	seed=(int)time(NULL)*311-getpid()*359+getppid()*383;
+ 	srand(seed);
+ 	for(x=0;x<buffer_size;x++)
+ 		buffer[x]=(int)'0'+(int)(72.0*rand()/(RAND_MAX+1.0));

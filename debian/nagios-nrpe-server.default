@@ -1,0 +1,12 @@
+# defaults file for nagios-nrpe-server
+# (this file is a /bin/sh compatible fragment)
+
+# DAEMON_OPTS are any extra cmdline parameters you'd like to
+#             pass along to the nrpe daemon
+#DAEMON_OPTS="--no-ssl"
+
+# NICENESS is if you want to run the server at a different nice() priority
+#NICENESS=5
+
+# INETD is if you want to run the server via inetd (default=0, run as daemon)
+#INETD=0

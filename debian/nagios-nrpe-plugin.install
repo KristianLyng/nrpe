@@ -1,0 +1,2 @@
+src/check_nrpe usr/lib/nagios/plugins/
+debian/check_nrpe.cfg etc/nagios-plugins/config/

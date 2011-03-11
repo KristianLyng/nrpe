@@ -1,0 +1,19 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 02_nrpe.cfg_local-include.dpatch by  <seanius@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Support nrpe_local.cfg 
+
+@DPATCH@
+diff -urNad nagios-nrpe-2.4~/sample-config/nrpe.cfg.in nagios-nrpe-2.4/sample-config/nrpe.cfg.in
+--- nagios-nrpe-2.4~/sample-config/nrpe.cfg.in	2006-02-03 23:02:32.000000000 +0100
++++ nagios-nrpe-2.4/sample-config/nrpe.cfg.in	2006-03-31 07:07:16.000000000 +0200
+@@ -178,3 +178,8 @@
+ #command[check_load]=@libexecdir@/check_load -w $ARG1$ -c $ARG2$
+ #command[check_disk]=@libexecdir@/check_disk -w $ARG1$ -c $ARG2$ -p $ARG3$
+ #command[check_procs]=@libexecdir@/check_procs -w $ARG1$ -c $ARG2$ -s $ARG3$
++
++#
++# local configuration:
++#	if you'd prefer, you can instead place directives here
++include=/etc/nagios/nrpe_local.cfg

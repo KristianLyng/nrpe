@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = purge ]; then
+	test -d /var/lib/nagios && rmdir /var/lib/nagios || true #ignore non-failure errors 
+fi
+
+#DEBHELPER#
+

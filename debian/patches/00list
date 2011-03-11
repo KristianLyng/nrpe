@@ -1,0 +1,6 @@
+01_nodevrandom-and-docoptions.dpatch
+02_nrpe.cfg_local-include.dpatch
+03_support_nrpe.d.dpatch
+04_weird_output.dpatch
+05_pid_privileges.dpatch
+06_pid_directory.dpatch

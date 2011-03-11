@@ -1,0 +1,29 @@
+nagios-nrpe (2.12-4) unstable; urgency=low
+
+  The pidfile creation mechanism changed with this update. If you do not 
+  add "pid_file=/var/run/nagios/nrpe.pid" to you nrpe config take care that
+  the user "nagios" is able to write to your pidfile location. You can also 
+  change the initscript to create the pid directory on your own. 
+
+ -- Alexander Wirt <formorer@debian.org>  Tue, 07 Jul 2009 07:42:13 +0200
+
+nagios-nrpe (2.12-3) unstable; urgency=low
+
+  The homedirectory of the nagios user moved to /var/lib/nagios
+  which is now common on all nagios related packages. Its recommended
+  that you migrate an already existing nagios user to use /var/lib/nagios 
+  as homedirectory. 
+
+ -- Alexander Wirt <formorer@debian.org>  Sat, 21 Mar 2009 09:08:58 +0100
+
+nagios-nrpe (2.4-1) unstable; urgency=low
+
+  the nagios-nrpe-doc package is no longer provided.  the documentation
+  can now be found in /usr/share/doc/nagios-nrpe-{server|plugins}.  new
+  versions of the plugin and server packages conflict with the doc
+  package to prevent the old (and possibly incorrect in the future)
+  documentation from remaining.  to fully purge all information about
+  the package you should run:
+  	dpkg -P nagios-nrpe-doc
+
+ -- sean finney <seanius@debian.org>  Mon, 13 Mar 2006 15:47:47 +0100

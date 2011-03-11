@@ -1,0 +1,227 @@
+nagios-nrpe (2.12-4) unstable; urgency=low
+
+  * Build against libwrap0-dev (Closes: #412705)
+  * Remove 'last modified header' from nrpe config (Closes: #499280)
+  * Create /etc/nagios/nrpe.d (Closes: #505700, #474333)
+  * Fix pidfile handling (Closes: #411046)
+  * Add newer config.{guess,sub} (Closes: #535737)
+    - Build-depend on autotools-dev
+  * Delete /var/lib/nagios if empty after purge (Closes: #527069)
+  * Bump standards version (add README.source)
+  * Bump dh_compat version (remove -k from dh_clean)
+
+ -- Alexander Wirt <formorer@debian.org>  Mon, 06 Jul 2009 07:08:26 +0200
+
+nagios-nrpe (2.12-3.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Fix bashism (Closes: #530149).
+
+ -- Raphael Geissert <geissert@debian.org>  Sat, 04 Jul 2009 20:23:23 -0500
+
+nagios-nrpe (2.12-3) unstable; urgency=low
+
+  * Sync homedirectory of the nagios user with the nagios3 package 
+    (Closes: #479051)
+  * Removed now empty nagios-nrpe-plugins.post* scripts 
+
+ -- Alexander Wirt <formorer@debian.org>  Sat, 21 Mar 2009 09:33:39 +0100
+
+nagios-nrpe (2.12-2) unstable; urgency=low
+
+  * Add myself to uploaders.
+  * Clean buffer before use (Closes: #498749).
+  * Remove pid file before creating a new ones (Closes: #411046).
+  * Include inetd support (Closes: #409772).
+
+ -- Luk Claes <luk@debian.org>  Sun, 14 Sep 2008 16:04:17 +0200
+
+nagios-nrpe (2.12-1) unstable; urgency=low
+
+  * Support an nrpe.d config directory in addition to nrpe_local.cfg 
+    (Closes: #474333)
+  * Add myself to uploaders
+  * Add watch file 
+  * New upstream version (Closes: #475081)
+  * Acknowledge NMU from Chris Lamb (Closes: #484412) 
+  * Recommend Nagios 3 instead of Nagios 2 
+  * Update copyright file
+  * Use the same homedir as nagios3 (Closes: #479051)
+
+ -- Alexander Wirt <formorer@debian.org>  Wed, 06 Aug 2008 20:33:57 +0200
+
+nagios-nrpe (2.8.1-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Fix bashism in debian/rules (Closes: #484412)
+  * Bump Standards-Version to 3.8.0.
+
+ -- Chris Lamb <chris@chris-lamb.co.uk>  Sat, 12 Jul 2008 01:09:21 +0100
+
+nagios-nrpe (2.8.1-1) unstable; urgency=low
+
+  * New upstream release
+  * bump Recommends to nagios2, thanks to Henning Sprang
+    for suggesting this (closes: #399856).
+  * fix typo in package description, thanks to Tilman Koschnick for
+    noticing this (closes: #419130).
+
+ -- sean finney <seanius@debian.org>  Sat, 12 May 2007 12:27:30 +0200
+
+nagios-nrpe (2.5.1-3) unstable; urgency=high
+
+  * apparently we were already including another default file
+    without installing it, and some people were using it.  so
+    now we include this one as well as the new default, with this
+    one taking precedence since it was there first.  thanks to
+    Peter Palfrader for catching this (closes: #398914).
+
+ -- sean finney <seanius@debian.org>  Fri, 17 Nov 2006 09:17:55 +0100
+
+nagios-nrpe (2.5.1-2) unstable; urgency=low
+
+  * include a /etc/default/nagios-nrpe-server where variables
+    such as DAEMON_OPTS can be set (closes: #396709).
+  * bump standards version to 3.7.2
+  * add pre-depends on adduser
+  * LSB-ize init script, and add dependency on lsb-base
+
+ -- sean finney <seanius@debian.org>  Sat, 04 Nov 2006 17:38:34 +0100
+
+nagios-nrpe (2.5.1-1) unstable; urgency=low
+
+  * new upstream release.  includes fix from Peter Palfrader to catch
+    invalid free()'s when nrpe is called with --no-ssl (closes: #361233).
+
+ -- sean finney <seanius@debian.org>  Sun, 14 May 2006 21:38:48 -0500
+
+nagios-nrpe (2.4-2) unstable; urgency=low
+
+  [sean finney]
+  * removing nrpe_local.cfg caused trouble for some people, so
+    i've added it back in (closes: #360093).
+
+ -- sean finney <seanius@debian.org>  Fri, 31 Mar 2006 07:02:31 +0200
+
+nagios-nrpe (2.4-1) unstable; urgency=low
+
+  * new upstream release.
+
+  [sean finney]
+  * (NEEDS TESTING) move away from cdbs for my own sanity.
+  * add build-dependency on dpatch.
+  * no longer create nrpe_local.cfg.  no reason to have it.
+  * remove postinst script for nagios-nrpe-server, as all it
+    did was touch the previously mentioned file.
+  * upstream has incorporated the following patches:
+    - 02_global-cmd-prefix.dpatch
+    - 03_nrpe-trailing-whitespace.dpatch
+  * check_nrpe -h provides what "-a" does, but i've gone ahead and
+    added a comment in check_nrpe.cfg too, because it can't hurt
+    to do so :) (closes: #351714).
+  * no longer generate the nagios-nrpe-doc package, and move copies of
+    the documentation into the plugin and server packages.  add a
+    Conflicts: nagios-nrpe-doc to the remaining packages to ensure
+    that the stale package doesn't remain.  NEWS.Debian also mentions
+    this and instructs the admin to purge the package too.
+
+ -- sean finney <seanius@debian.org>  Tue, 24 Jan 2006 18:16:54 +0100
+
+nagios-nrpe (2.2-1) unstable; urgency=low
+
+  * new upstream release.
+
+  [sean finney]
+  * debian packaging source repository is now migrated to svn.
+  * updated 01_nodevrandom-and-docoptions.dpatch and
+    02_global-cmd-prefix.dpatch to apply against the latest
+    upstream version.
+  * nrpe.cfg has moved location in the upstream tarball.
+  * introduced 03_nrpe-trailing-whitespace.dpatch to fix regression
+    in config file parsing until upstream incorporates it.
+
+ -- sean finney <seanius@debian.org>  Tue, 24 Jan 2006 17:52:54 +0100
+
+nagios-nrpe (2.0-9) unstable; urgency=low
+
+  * Sean Finney:
+    - nagios-nrpe has now joined forces with the debian pkg-nagios
+      project, updated Maintainer and Uploaders field accordingly.
+    - provide check_nrpe_1arg command definition so that one can call
+      check_nrpe both with and without arguments to the cmds 
+      (closes: #248424).
+    - changed nagios-nrpe-server's Recommends on nagios-plugins to reflect
+      the upcoming new nagios-plugins layout.
+    - changed nagios-nrpe-plugin's Depends on nagios to a Recommends.
+    - building issues seem to be resolved on arm now (closes: #259442).
+    - updated Standards-Version to 3.6.2
+    - included patch from joerg and weasel to document some cmdline options
+      and provide a better alternative to reading a random byte from
+      /dev/random (closes: #333552).
+    - included "global command prefix" patch from joerg jaspert
+      (closes: #332253).
+
+ -- sean finney <seanius@debian.org>  Tue, 25 Oct 2005 10:04:59 -0400
+
+nagios-nrpe (2.0-8) unstable; urgency=low
+
+  * debian/control: change depends on nagios-plugins, to recommends.
+    (closes: #327199)
+
+ -- Jason Thomas <jason@debian.org>  Mon, 10 Oct 2005 08:07:57 +1000
+
+nagios-nrpe (2.0-7) unstable; urgency=high
+
+  * The previous upload fixes a bug that breaks the install of this package so
+    this is a new upload with a high urgency to try and get it into sarge.
+
+ -- Jason Thomas <jason@debian.org>  Thu, 19 Aug 2004 22:47:40 +1000
+
+nagios-nrpe (2.0-6) unstable; urgency=low
+
+  * nagios plugin config dir changed to etc/nagios-plugins/configs/
+    (closes: #266826)
+
+ -- Jason Thomas <jason@debian.org>  Thu, 19 Aug 2004 21:17:28 +1000
+
+nagios-nrpe (2.0-5) unstable; urgency=low
+
+  * debian/nagios-nrpe-server.preinst: added code to create nagios user and
+    group.
+    (closes: #248995, #241168)
+
+ -- Jason Thomas <jason@debian.org>  Sat, 15 May 2004 12:02:35 +1000
+
+nagios-nrpe (2.0-4) unstable; urgency=low
+
+  * debian/nagios-nrpe-server.init.d: added missing -d to restart.
+    (closes: #248797)
+  * debian/nrpe.1: renamed to nrpe.8
+  * debian/nagios-nrpe-server.manpages: changed nrpe.1 to nrpe.8
+  * debian/dirs: deleted it as its not needed. 
+
+ -- Jason Thomas <jason@debian.org>  Fri, 14 May 2004 14:05:03 +1000
+
+nagios-nrpe (2.0-3) unstable; urgency=low
+
+  * debian/nagios-nrpe-server.init.d: added --oknodo to stop commands which
+    will make upgrades and purges clean.
+
+ -- Jason Thomas <jason@debian.org>  Wed, 24 Mar 2004 13:09:00 +1100
+
+nagios-nrpe (2.0-2) unstable; urgency=low
+
+  * debian/control: added build-depends cdbs
+    (closes: #230943)
+  * debian/control: nagios-nrpe-server now conflicts netsaint-nrpe-server
+    (closes: #230303)
+
+ -- Jason Thomas <jason@debian.org>  Wed, 11 Feb 2004 09:27:01 +1100
+
+nagios-nrpe (2.0-1) unstable; urgency=low
+
+  * Initial Release.
+    (closes: #209124)
+
+ -- Jason Thomas <jason@debian.org>  Wed, 14 Jan 2004 16:13:36 +1100
+

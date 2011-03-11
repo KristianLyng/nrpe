@@ -1,0 +1,12 @@
+nrpe
+----
+
+Put any local check command you need into /etc/nagios/nrpe_local.cfg
+This file is included from the /etc/nagios/nrpe.cfg
+
+To enable the use of command argument processing change dont_blame_nrpe option
+in nrpe.cfg then create the commands you want in nrpe_local.cfg
+
+Most options can be overridden in nrpe_local.cfg
+
+ -- Jason Thomas <jason@debian.org>, Thu, 15 Jan 2004 10:45:45 +1100

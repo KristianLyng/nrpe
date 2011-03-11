@@ -1,0 +1,3 @@
+version=3
+
+http://sf.net/nagios/nrpe-([0-9.]+).tar.gz 
