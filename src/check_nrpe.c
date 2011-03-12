@@ -84,6 +84,26 @@ struct check_nrpe {
 
 struct check_nrpe global;
 
+/*
+ * Just sets the global data structure to something sane.
+ */
+static void initialize_global(void) {
+	global.server_port = DEFAULT_SERVER_PORT;
+	global.server_name = NULL;
+	global.command_name = NULL;
+	global.socket_timeout = DEFAULT_SOCKET_TIMEOUT;
+	global.timeout_return_code = STATE_CRITICAL;
+	memset(global.query,sizeof(global.query),0);
+	global.show_help = FALSE;
+	global.show_license = FALSE;
+	global.show_version = FALSE;
+#ifdef HAVE_SSL
+	global.use_ssl = TRUE;
+#else
+	global.use_ssl = FALSE;
+#endif
+}
+
 static void usage(void)
 {
 	printf ("Usage: check_nrpe -H <host> [-n] [-u] [-p <port>] [-t <timeout>] [-c <command>] [-a <arglist...>]\n");
@@ -273,6 +293,7 @@ int main(int argc, char **argv)
 	int bytes_to_send;
 	int bytes_to_recv;
 
+	initialize_global();
 	result = process_arguments(argc, argv);
 
 	if (result != OK || global.show_help == TRUE || global.show_license == TRUE
