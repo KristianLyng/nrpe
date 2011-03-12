@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "common.h"
 #include "utils.h"
@@ -120,6 +121,34 @@ void randomize_buffer(char *buffer, int buffer_size)
 	return;
 }
 
+
+/*
+ * Convenience functions for exiting with a warning and error respectively.
+ * Nagios ignores stderr and interprets return-code 2 as critical and 1 as
+ * warning.
+ */
+static void exit_crit(const char *fmt, ...)
+{
+	va_list ap;
+	fprintf(stdout,"CRITICAL: ");
+	va_start(ap, fmt);
+	vfprintf(stdout, fmt, ap);
+	va_end(ap);
+	fprintf(stdout, "\n");
+	exit(2);
+}
+
+static void exit_warn(const char *fmt, ...)
+{
+	va_list ap;
+	fprintf(stdout,"WARNING: ");
+	va_start(ap, fmt);
+	vfprintf(stdout, fmt, ap);
+	va_end(ap);
+	fprintf(stdout, "\n");
+	exit(1);
+}
+
 /*
  * Open a connection to the hostname and port and store the FD on *sd.
  * Returns 0 on success. Iterates sockets until one works, thus
@@ -133,10 +162,8 @@ int my_tcp_connect(char *host_name, int port, int *sd)
 	char strport[10];
 
 	s = snprintf(strport,10,"%d",port);
-	if (s>10 || s<0) {
-		fprintf(stderr, "Invalid port-number?");
-		exit(EXIT_FAILURE);
-	}
+	if (s>10 || s<0)
+		exit_crit("Invalid port-number?");
 	
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = AF_UNSPEC;
@@ -145,10 +172,8 @@ int my_tcp_connect(char *host_name, int port, int *sd)
 	hints.ai_protocol = 0;
 
 	s = getaddrinfo(host_name, strport, &hints, &result);
-	if (s != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
-		exit(EXIT_FAILURE);
-	}
+	if (s != 0)
+		exit_crit("getaddrinfo: %s\n", gai_strerror(s));
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
@@ -161,10 +186,8 @@ int my_tcp_connect(char *host_name, int port, int *sd)
 		close(sfd);
 	}
 
-	if (rp == NULL) {
-		fprintf(stderr, "Could not connect\n");
-		exit(EXIT_FAILURE);
-	}
+	if (rp == NULL)
+		exit_crit("Could not connect\n");
 
 	freeaddrinfo(result);
 
