@@ -144,6 +144,8 @@ int show_version = FALSE;
 int use_inetd = TRUE;
 int debug = FALSE;
 
+static int read_config_file(char *filename);
+
 /*
  * Check if we are running as root, exit if true, return OK if not.
  */
@@ -162,6 +164,104 @@ static int check_privileges(void)
 	}
 
 	return OK;
+}
+
+/* replace macros in buffer */
+static int process_macros(char *input_buffer, char *output_buffer, int buffer_length)
+{
+	char *temp_buffer;
+	int in_macro;
+	int arg_index = 0;
+	char *selected_macro = NULL;
+
+	strcpy(output_buffer, "");
+
+	in_macro = FALSE;
+
+	for (temp_buffer = my_strsep(&input_buffer, "$"); temp_buffer != NULL;
+	     temp_buffer = my_strsep(&input_buffer, "$")) {
+
+		selected_macro = NULL;
+
+		if (in_macro == FALSE) {
+			if (strlen(output_buffer) + strlen(temp_buffer) <
+			    buffer_length - 1) {
+				strncat(output_buffer, temp_buffer,
+					buffer_length - strlen(output_buffer) -
+					1);
+				output_buffer[buffer_length - 1] = '\x0';
+			}
+			in_macro = TRUE;
+		} else {
+
+			if (strlen(output_buffer) + strlen(temp_buffer) <
+			    buffer_length - 1) {
+
+				/* argument macro */
+				if (strstr(temp_buffer, "ARG") == temp_buffer) {
+					arg_index = atoi(temp_buffer + 3);
+					if (arg_index >= 1
+					    && arg_index <=
+					    MAX_COMMAND_ARGUMENTS)
+						selected_macro =
+						    macro_argv[arg_index - 1];
+				}
+
+				/* an escaped $ is done by specifying two $$ next to each other */
+				else if (!strcmp(temp_buffer, "")) {
+					strncat(output_buffer, "$",
+						buffer_length -
+						strlen(output_buffer) - 1);
+				}
+
+				/* a non-macro, just some user-defined string between two $s */
+				else {
+					strncat(output_buffer, "$",
+						buffer_length -
+						strlen(output_buffer) - 1);
+					output_buffer[buffer_length - 1] =
+					    '\x0';
+					strncat(output_buffer, temp_buffer,
+						buffer_length -
+						strlen(output_buffer) - 1);
+					output_buffer[buffer_length - 1] =
+					    '\x0';
+					strncat(output_buffer, "$",
+						buffer_length -
+						strlen(output_buffer) - 1);
+				}
+
+				/* insert macro */
+				if (selected_macro != NULL)
+					strncat(output_buffer,
+						(selected_macro ==
+						 NULL) ? "" : selected_macro,
+						buffer_length -
+						strlen(output_buffer) - 1);
+
+				output_buffer[buffer_length - 1] = '\x0';
+			}
+
+			in_macro = FALSE;
+		}
+	}
+
+	return OK;
+}
+
+/* tests whether a buffer contains illegal metachars */
+static int contains_nasty_metachars(char *str)
+{
+	int result;
+
+	if (str == NULL)
+		return FALSE;
+
+	result = strcspn(str, NASTY_METACHARS);
+	if (result != strlen(str))
+		return TRUE;
+
+	return FALSE;
 }
 
 /* drops privileges */
@@ -244,6 +344,565 @@ static int drop_privileges(char *user, char *group)
 		}
 	}
 
+	return OK;
+}
+
+/* determines facility to use with syslog */
+static int get_log_facility(char *varvalue)
+{
+
+	if (!strcmp(varvalue, "kern"))
+		log_facility = LOG_KERN;
+	else if (!strcmp(varvalue, "user"))
+		log_facility = LOG_USER;
+	else if (!strcmp(varvalue, "mail"))
+		log_facility = LOG_MAIL;
+	else if (!strcmp(varvalue, "daemon"))
+		log_facility = LOG_DAEMON;
+	else if (!strcmp(varvalue, "auth"))
+		log_facility = LOG_AUTH;
+	else if (!strcmp(varvalue, "syslog"))
+		log_facility = LOG_SYSLOG;
+	else if (!strcmp(varvalue, "lrp"))
+		log_facility = LOG_LPR;
+	else if (!strcmp(varvalue, "news"))
+		log_facility = LOG_NEWS;
+	else if (!strcmp(varvalue, "uucp"))
+		log_facility = LOG_UUCP;
+	else if (!strcmp(varvalue, "cron"))
+		log_facility = LOG_CRON;
+	else if (!strcmp(varvalue, "authpriv"))
+		log_facility = LOG_AUTHPRIV;
+	else if (!strcmp(varvalue, "ftp"))
+		log_facility = LOG_FTP;
+	else if (!strcmp(varvalue, "local0"))
+		log_facility = LOG_LOCAL0;
+	else if (!strcmp(varvalue, "local1"))
+		log_facility = LOG_LOCAL1;
+	else if (!strcmp(varvalue, "local2"))
+		log_facility = LOG_LOCAL2;
+	else if (!strcmp(varvalue, "local3"))
+		log_facility = LOG_LOCAL3;
+	else if (!strcmp(varvalue, "local4"))
+		log_facility = LOG_LOCAL4;
+	else if (!strcmp(varvalue, "local5"))
+		log_facility = LOG_LOCAL5;
+	else if (!strcmp(varvalue, "local6"))
+		log_facility = LOG_LOCAL6;
+	else if (!strcmp(varvalue, "local7"))
+		log_facility = LOG_LOCAL7;
+	else {
+		log_facility = LOG_DAEMON;
+		return ERROR;
+	}
+
+	return OK;
+}
+/* process command line arguments */
+static int process_arguments(int argc, char **argv)
+{
+	char optchars[MAX_INPUT_BUFFER];
+	int c = 1;
+	int have_mode = FALSE;
+
+#ifdef HAVE_GETOPT_LONG
+	int option_index = 0;
+	static struct option long_options[] = {
+		{"config", required_argument, 0, 'c'},
+		{"inetd", no_argument, 0, 'i'},
+		{"daemon", no_argument, 0, 'd'},
+		{"no-ssl", no_argument, 0, 'n'},
+		{"help", no_argument, 0, 'h'},
+		{"license", no_argument, 0, 'l'},
+		{0, 0, 0, 0}
+	};
+#endif
+
+	/* no options were supplied */
+	if (argc < 2)
+		return ERROR;
+
+	snprintf(optchars, MAX_INPUT_BUFFER, "c:hVldin");
+
+	while (1) {
+#ifdef HAVE_GETOPT_LONG
+		c = getopt_long(argc, argv, optchars, long_options,
+				&option_index);
+#else
+		c = getopt(argc, argv, optchars);
+#endif
+		if (c == -1 || c == EOF)
+			break;
+
+		/* process all arguments */
+		switch (c) {
+
+		case '?':
+		case 'h':
+			show_help = TRUE;
+			break;
+		case 'V':
+			show_version = TRUE;
+			break;
+		case 'l':
+			show_license = TRUE;
+			break;
+		case 'c':
+			strncpy(config_file, optarg, sizeof(config_file));
+			config_file[sizeof(config_file) - 1] = '\x0';
+			break;
+		case 'd':
+			use_inetd = FALSE;
+			have_mode = TRUE;
+			break;
+		case 'i':
+			use_inetd = TRUE;
+			have_mode = TRUE;
+			break;
+		case 'n':
+			use_ssl = FALSE;
+			break;
+		default:
+			return ERROR;
+			break;
+		}
+	}
+
+	/* bail if we didn't get required args */
+	if (have_mode == FALSE)
+		return ERROR;
+
+	return OK;
+}
+/* checks to see if a given host is allowed to talk to us */
+static int is_an_allowed_host(char *connecting_host)
+{
+	char *temp_buffer = NULL;
+	char *temp_ptr = NULL;
+	int result = 0;
+	struct hostent *myhost;
+	char **pptr = NULL;
+	char *save_connecting_host = NULL;
+	struct in_addr addr;
+
+	/* make sure we have something */
+	if (connecting_host == NULL)
+		return 0;
+	if (allowed_hosts == NULL)
+		return 1;
+
+	if ((temp_buffer = strdup(allowed_hosts)) == NULL)
+		return 0;
+
+	/* try and match IP addresses first */
+	for (temp_ptr = strtok(temp_buffer, ","); temp_ptr != NULL;
+	     temp_ptr = strtok(NULL, ",")) {
+
+		if (!strcmp(connecting_host, temp_ptr)) {
+			result = 1;
+			break;
+		}
+	}
+
+	/* try DNS lookups if needed */
+	if (result == 0) {
+
+		free(temp_buffer);
+		if ((temp_buffer = strdup(allowed_hosts)) == NULL)
+			return 0;
+
+		save_connecting_host = strdup(connecting_host);
+		for (temp_ptr = strtok(temp_buffer, ","); temp_ptr != NULL;
+		     temp_ptr = strtok(NULL, ",")) {
+
+			myhost = gethostbyname(temp_ptr);
+			if (myhost != NULL) {
+
+				/* check all addresses for the host... */
+				for (pptr = myhost->h_addr_list; *pptr != NULL;
+				     pptr++) {
+					memcpy(&addr, *pptr, sizeof(addr));
+					if (!strcmp
+					    (save_connecting_host,
+					     inet_ntoa(addr))) {
+						result = 1;
+						break;
+					}
+				}
+			}
+
+			if (result == 1)
+				break;
+		}
+
+		strcpy(connecting_host, save_connecting_host);
+		free(save_connecting_host);
+	}
+
+	free(temp_buffer);
+
+	return result;
+}
+
+/* process all config files in a specific config directory (with directory recursion) */
+static int read_config_dir(char *dirname)
+{
+	char config_file[MAX_FILENAME_LENGTH];
+	DIR *dirp;
+	struct dirent *dirfile;
+	struct stat buf;
+	int result = OK;
+	int x;
+
+	/* open the directory for reading */
+	dirp = opendir(dirname);
+	if (dirp == NULL) {
+		syslog(LOG_ERR,
+		       "Could not open config directory '%s' for reading.\n",
+		       dirname);
+		return ERROR;
+	}
+
+	/* process all files in the directory... */
+	while ((dirfile = readdir(dirp)) != NULL) {
+
+		/* create the full path to the config file or subdirectory */
+		snprintf(config_file, sizeof(config_file) - 1, "%s/%s", dirname,
+			 dirfile->d_name);
+		config_file[sizeof(config_file) - 1] = '\x0';
+		stat(config_file, &buf);
+
+		/* process this if it's a config file... */
+		x = strlen(dirfile->d_name);
+		if (x > 4 && !strcmp(dirfile->d_name + (x - 4), ".cfg")) {
+
+			/* only process normal files */
+			if (!S_ISREG(buf.st_mode))
+				continue;
+
+			/* process the config file */
+			result = read_config_file(config_file);
+
+			/* break out if we encountered an error */
+			if (result == ERROR)
+				break;
+		}
+
+		/* recurse into subdirectories... */
+		if (S_ISDIR(buf.st_mode)) {
+
+			/* ignore current, parent and hidden directory entries */
+			if (dirfile->d_name[0] == '.')
+				continue;
+
+			/* process the config directory */
+			result = read_config_dir(config_file);
+
+			/* break out if we encountered an error */
+			if (result == ERROR)
+				break;
+		}
+	}
+
+	closedir(dirp);
+
+	return result;
+}
+
+/* read in the configuration file */
+static int read_config_file(char *filename)
+{
+	FILE *fp;
+	char config_file[MAX_FILENAME_LENGTH];
+	char input_buffer[MAX_INPUT_BUFFER];
+	char *input_line;
+	char *temp_buffer;
+	char *varname;
+	char *varvalue;
+	int line = 0;
+	int len = 0;
+	int x = 0;
+
+	/* open the config file for reading */
+	fp = fopen(filename, "r");
+
+	/* exit if we couldn't open the config file */
+	if (fp == NULL) {
+		syslog(LOG_ERR, "Unable to open config file '%s' for reading\n",
+		       filename);
+		return ERROR;
+	}
+
+	while (fgets(input_buffer, MAX_INPUT_BUFFER - 1, fp)) {
+
+		line++;
+		input_line = input_buffer;
+
+		/* skip leading whitespace */
+		while (isspace(*input_line))
+			++input_line;
+
+		/* trim trailing whitespace */
+		len = strlen(input_line);
+		for (x = len - 1; x >= 0; x--) {
+			if (isspace(input_line[x]))
+				input_line[x] = '\x0';
+			else
+				break;
+		}
+
+		/* skip comments and blank lines */
+		if (input_line[0] == '#')
+			continue;
+		if (input_line[0] == '\x0')
+			continue;
+		if (input_line[0] == '\n')
+			continue;
+
+		/* get the variable name */
+		varname = strtok(input_line, "=");
+		if (varname == NULL) {
+			syslog(LOG_ERR,
+			       "No variable name specified in config file '%s' - Line %d\n",
+			       filename, line);
+			return ERROR;
+		}
+
+		/* get the variable value */
+		varvalue = strtok(NULL, "\n");
+		if (varvalue == NULL) {
+			syslog(LOG_ERR,
+			       "No variable value specified in config file '%s' - Line %d\n",
+			       filename, line);
+			return ERROR;
+		}
+
+		/* allow users to specify directories to recurse into for config files */
+		else if (!strcmp(varname, "include_dir")) {
+
+			strncpy(config_file, varvalue, sizeof(config_file) - 1);
+			config_file[sizeof(config_file) - 1] = '\x0';
+
+			/* strip trailing / if necessary */
+			if (config_file[strlen(config_file) - 1] == '/')
+				config_file[strlen(config_file) - 1] = '\x0';
+
+			/* process the config directory... */
+			if (read_config_dir(config_file) == ERROR)
+				syslog(LOG_ERR, "Continuing with errors...");
+		}
+
+		/* allow users to specify individual config files to include */
+		else if (!strcmp(varname, "include")
+			 || !strcmp(varname, "include_file")) {
+
+			/* process the config file... */
+			if (read_config_file(varvalue) == ERROR)
+				syslog(LOG_ERR, "Continuing with errors...");
+		}
+
+		else if (!strcmp(varname, "server_port")) {
+			server_port = atoi(varvalue);
+			if (server_port < 1024) {
+				syslog(LOG_ERR,
+				       "Invalid port number specified in config file '%s' - Line %d\n",
+				       filename, line);
+				return ERROR;
+			}
+		} else if (!strcmp(varname, "command_prefix"))
+			command_prefix = strdup(varvalue);
+
+		else if (!strcmp(varname, "server_address")) {
+			strncpy(server_address, varvalue,
+				sizeof(server_address) - 1);
+			server_address[sizeof(server_address) - 1] = '\0';
+		}
+
+		else if (!strcmp(varname, "allowed_hosts"))
+			allowed_hosts = strdup(varvalue);
+
+		else if (strstr(input_line, "command[")) {
+			temp_buffer = strtok(varname, "[");
+			temp_buffer = strtok(NULL, "]");
+			if (temp_buffer == NULL) {
+				syslog(LOG_ERR,
+				       "Invalid command specified in config file '%s' - Line %d\n",
+				       filename, line);
+				return ERROR;
+			}
+			add_command(temp_buffer, varvalue);
+		}
+
+		else if (strstr(input_buffer, "debug")) {
+			debug = atoi(varvalue);
+			if (debug > 0)
+				debug = TRUE;
+			else
+				debug = FALSE;
+		}
+
+		else if (!strcmp(varname, "nrpe_user"))
+			nrpe_user = strdup(varvalue);
+
+		else if (!strcmp(varname, "nrpe_group"))
+			nrpe_group = strdup(varvalue);
+
+		else if (!strcmp(varname, "dont_blame_nrpe"))
+			allow_arguments = (atoi(varvalue) == 1) ? TRUE : FALSE;
+
+		else if (!strcmp(varname, "command_timeout")) {
+			command_timeout = atoi(varvalue);
+			if (command_timeout < 1) {
+				syslog(LOG_ERR,
+				       "Invalid command_timeout specified in config file '%s' - Line %d\n",
+				       filename, line);
+				return ERROR;
+			}
+		}
+
+		else if (!strcmp(varname, "connection_timeout")) {
+			connection_timeout = atoi(varvalue);
+			if (connection_timeout < 1) {
+				syslog(LOG_ERR,
+				       "Invalid connection_timeout specified in config file '%s' - Line %d\n",
+				       filename, line);
+				return ERROR;
+			}
+		}
+
+		else if (!strcmp(varname, "allow_weak_random_seed"))
+			allow_weak_random_seed =
+			    (atoi(varvalue) == 1) ? TRUE : FALSE;
+
+		else if (!strcmp(varname, "pid_file"))
+			pid_file = strdup(varvalue);
+
+		else if (!strcmp(varname, "log_facility")) {
+			if ((get_log_facility(varvalue)) == OK) {
+				/* re-open log using new facility */
+				closelog();
+				openlog("nrpe", LOG_PID, log_facility);
+			} else
+				syslog(LOG_WARNING,
+				       "Invalid log_facility specified in config file '%s' - Line %d\n",
+				       filename, line);
+		}
+
+		else {
+			syslog(LOG_WARNING,
+			       "Unknown option specified in config file '%s' - Line %d\n",
+			       filename, line);
+			continue;
+		}
+
+	}
+
+	/* close the config file */
+	fclose(fp);
+
+	return OK;
+}
+
+/*
+ * Sighandler for children (QUIT,HUP,TERM).
+ * XXX: No point "Freeing memory" right before we exit.
+ */
+static void child_sighandler(int __attribute__((unused)) sig)
+{
+	exit(0);
+}
+
+/* tests whether or not a client request is valid */
+static int validate_request(packet * pkt)
+{
+	u_int32_t packet_crc32;
+	u_int32_t calculated_crc32;
+	char *ptr;
+#ifdef ENABLE_COMMAND_ARGUMENTS
+	int x;
+#endif
+
+	/***** DECRYPT REQUEST ******/
+
+	/* check the crc 32 value */
+	packet_crc32 = ntohl(pkt->crc32_value);
+	pkt->crc32_value = 0L;
+	calculated_crc32 = calculate_crc32((char *)pkt, sizeof(packet));
+	if (packet_crc32 != calculated_crc32) {
+		syslog(LOG_ERR, "Error: Request packet had invalid CRC32.");
+		return ERROR;
+	}
+
+	/* make sure this is the right type of packet */
+	if (ntohs(pkt->packet_type) != QUERY_PACKET
+	    || ntohs(pkt->packet_version) != NRPE_PACKET_VERSION_2) {
+		syslog(LOG_ERR,
+		       "Error: Request packet type/version was invalid!");
+		return ERROR;
+	}
+
+	/* make sure buffer is terminated */
+	pkt->buffer[MAX_PACKETBUFFER_LENGTH - 1] = '\x0';
+
+	/* client must send some kind of request */
+	if (!strcmp(pkt->buffer, "")) {
+		syslog(LOG_ERR, "Error: Request contained no query!");
+		return ERROR;
+	}
+
+	/* make sure request doesn't contain nasties */
+	if (contains_nasty_metachars(pkt->buffer) == TRUE) {
+		syslog(LOG_ERR, "Error: Request contained illegal metachars!");
+		return ERROR;
+	}
+
+	/* make sure the request doesn't contain arguments */
+	if (strchr(pkt->buffer, '!')) {
+#ifdef ENABLE_COMMAND_ARGUMENTS
+		if (allow_arguments == FALSE) {
+			syslog(LOG_ERR,
+			       "Error: Request contained command arguments, but argument option is not enabled!");
+			return ERROR;
+		}
+#else
+		syslog(LOG_ERR, "Error: Request contained command arguments!");
+		return ERROR;
+#endif
+	}
+
+	/* get command name */
+#ifdef ENABLE_COMMAND_ARGUMENTS
+	ptr = strtok(pkt->buffer, "!");
+#else
+	ptr = pkt->buffer;
+#endif
+	command_name = strdup(ptr);
+	if (command_name == NULL) {
+		syslog(LOG_ERR, "Error: Memory allocation failed");
+		return ERROR;
+	}
+#ifdef ENABLE_COMMAND_ARGUMENTS
+	/* get command arguments */
+	if (allow_arguments == TRUE) {
+
+		for (x = 0; x < MAX_COMMAND_ARGUMENTS; x++) {
+			ptr = strtok(NULL, "!");
+			if (ptr == NULL)
+				break;
+			macro_argv[x] = strdup(ptr);
+			if (macro_argv[x] == NULL) {
+				syslog(LOG_ERR,
+				       "Error: Memory allocation failed");
+				return ERROR;
+			}
+			if (!strcmp(macro_argv[x], "")) {
+				syslog(LOG_ERR,
+				       "Error: Request contained an empty command argument");
+				return ERROR;
+			}
+		}
+	}
+#endif
 	return OK;
 }
 
@@ -511,317 +1170,6 @@ int main(int argc, char **argv)
 	/* We are now running in daemon mode, or the connection handed over by inetd has
 	   been completed, so the parent process exits */
 	return STATE_OK;
-}
-
-/* read in the configuration file */
-int read_config_file(char *filename)
-{
-	FILE *fp;
-	char config_file[MAX_FILENAME_LENGTH];
-	char input_buffer[MAX_INPUT_BUFFER];
-	char *input_line;
-	char *temp_buffer;
-	char *varname;
-	char *varvalue;
-	int line = 0;
-	int len = 0;
-	int x = 0;
-
-	/* open the config file for reading */
-	fp = fopen(filename, "r");
-
-	/* exit if we couldn't open the config file */
-	if (fp == NULL) {
-		syslog(LOG_ERR, "Unable to open config file '%s' for reading\n",
-		       filename);
-		return ERROR;
-	}
-
-	while (fgets(input_buffer, MAX_INPUT_BUFFER - 1, fp)) {
-
-		line++;
-		input_line = input_buffer;
-
-		/* skip leading whitespace */
-		while (isspace(*input_line))
-			++input_line;
-
-		/* trim trailing whitespace */
-		len = strlen(input_line);
-		for (x = len - 1; x >= 0; x--) {
-			if (isspace(input_line[x]))
-				input_line[x] = '\x0';
-			else
-				break;
-		}
-
-		/* skip comments and blank lines */
-		if (input_line[0] == '#')
-			continue;
-		if (input_line[0] == '\x0')
-			continue;
-		if (input_line[0] == '\n')
-			continue;
-
-		/* get the variable name */
-		varname = strtok(input_line, "=");
-		if (varname == NULL) {
-			syslog(LOG_ERR,
-			       "No variable name specified in config file '%s' - Line %d\n",
-			       filename, line);
-			return ERROR;
-		}
-
-		/* get the variable value */
-		varvalue = strtok(NULL, "\n");
-		if (varvalue == NULL) {
-			syslog(LOG_ERR,
-			       "No variable value specified in config file '%s' - Line %d\n",
-			       filename, line);
-			return ERROR;
-		}
-
-		/* allow users to specify directories to recurse into for config files */
-		else if (!strcmp(varname, "include_dir")) {
-
-			strncpy(config_file, varvalue, sizeof(config_file) - 1);
-			config_file[sizeof(config_file) - 1] = '\x0';
-
-			/* strip trailing / if necessary */
-			if (config_file[strlen(config_file) - 1] == '/')
-				config_file[strlen(config_file) - 1] = '\x0';
-
-			/* process the config directory... */
-			if (read_config_dir(config_file) == ERROR)
-				syslog(LOG_ERR, "Continuing with errors...");
-		}
-
-		/* allow users to specify individual config files to include */
-		else if (!strcmp(varname, "include")
-			 || !strcmp(varname, "include_file")) {
-
-			/* process the config file... */
-			if (read_config_file(varvalue) == ERROR)
-				syslog(LOG_ERR, "Continuing with errors...");
-		}
-
-		else if (!strcmp(varname, "server_port")) {
-			server_port = atoi(varvalue);
-			if (server_port < 1024) {
-				syslog(LOG_ERR,
-				       "Invalid port number specified in config file '%s' - Line %d\n",
-				       filename, line);
-				return ERROR;
-			}
-		} else if (!strcmp(varname, "command_prefix"))
-			command_prefix = strdup(varvalue);
-
-		else if (!strcmp(varname, "server_address")) {
-			strncpy(server_address, varvalue,
-				sizeof(server_address) - 1);
-			server_address[sizeof(server_address) - 1] = '\0';
-		}
-
-		else if (!strcmp(varname, "allowed_hosts"))
-			allowed_hosts = strdup(varvalue);
-
-		else if (strstr(input_line, "command[")) {
-			temp_buffer = strtok(varname, "[");
-			temp_buffer = strtok(NULL, "]");
-			if (temp_buffer == NULL) {
-				syslog(LOG_ERR,
-				       "Invalid command specified in config file '%s' - Line %d\n",
-				       filename, line);
-				return ERROR;
-			}
-			add_command(temp_buffer, varvalue);
-		}
-
-		else if (strstr(input_buffer, "debug")) {
-			debug = atoi(varvalue);
-			if (debug > 0)
-				debug = TRUE;
-			else
-				debug = FALSE;
-		}
-
-		else if (!strcmp(varname, "nrpe_user"))
-			nrpe_user = strdup(varvalue);
-
-		else if (!strcmp(varname, "nrpe_group"))
-			nrpe_group = strdup(varvalue);
-
-		else if (!strcmp(varname, "dont_blame_nrpe"))
-			allow_arguments = (atoi(varvalue) == 1) ? TRUE : FALSE;
-
-		else if (!strcmp(varname, "command_timeout")) {
-			command_timeout = atoi(varvalue);
-			if (command_timeout < 1) {
-				syslog(LOG_ERR,
-				       "Invalid command_timeout specified in config file '%s' - Line %d\n",
-				       filename, line);
-				return ERROR;
-			}
-		}
-
-		else if (!strcmp(varname, "connection_timeout")) {
-			connection_timeout = atoi(varvalue);
-			if (connection_timeout < 1) {
-				syslog(LOG_ERR,
-				       "Invalid connection_timeout specified in config file '%s' - Line %d\n",
-				       filename, line);
-				return ERROR;
-			}
-		}
-
-		else if (!strcmp(varname, "allow_weak_random_seed"))
-			allow_weak_random_seed =
-			    (atoi(varvalue) == 1) ? TRUE : FALSE;
-
-		else if (!strcmp(varname, "pid_file"))
-			pid_file = strdup(varvalue);
-
-		else if (!strcmp(varname, "log_facility")) {
-			if ((get_log_facility(varvalue)) == OK) {
-				/* re-open log using new facility */
-				closelog();
-				openlog("nrpe", LOG_PID, log_facility);
-			} else
-				syslog(LOG_WARNING,
-				       "Invalid log_facility specified in config file '%s' - Line %d\n",
-				       filename, line);
-		}
-
-		else {
-			syslog(LOG_WARNING,
-			       "Unknown option specified in config file '%s' - Line %d\n",
-			       filename, line);
-			continue;
-		}
-
-	}
-
-	/* close the config file */
-	fclose(fp);
-
-	return OK;
-}
-
-/* process all config files in a specific config directory (with directory recursion) */
-int read_config_dir(char *dirname)
-{
-	char config_file[MAX_FILENAME_LENGTH];
-	DIR *dirp;
-	struct dirent *dirfile;
-	struct stat buf;
-	int result = OK;
-	int x;
-
-	/* open the directory for reading */
-	dirp = opendir(dirname);
-	if (dirp == NULL) {
-		syslog(LOG_ERR,
-		       "Could not open config directory '%s' for reading.\n",
-		       dirname);
-		return ERROR;
-	}
-
-	/* process all files in the directory... */
-	while ((dirfile = readdir(dirp)) != NULL) {
-
-		/* create the full path to the config file or subdirectory */
-		snprintf(config_file, sizeof(config_file) - 1, "%s/%s", dirname,
-			 dirfile->d_name);
-		config_file[sizeof(config_file) - 1] = '\x0';
-		stat(config_file, &buf);
-
-		/* process this if it's a config file... */
-		x = strlen(dirfile->d_name);
-		if (x > 4 && !strcmp(dirfile->d_name + (x - 4), ".cfg")) {
-
-			/* only process normal files */
-			if (!S_ISREG(buf.st_mode))
-				continue;
-
-			/* process the config file */
-			result = read_config_file(config_file);
-
-			/* break out if we encountered an error */
-			if (result == ERROR)
-				break;
-		}
-
-		/* recurse into subdirectories... */
-		if (S_ISDIR(buf.st_mode)) {
-
-			/* ignore current, parent and hidden directory entries */
-			if (dirfile->d_name[0] == '.')
-				continue;
-
-			/* process the config directory */
-			result = read_config_dir(config_file);
-
-			/* break out if we encountered an error */
-			if (result == ERROR)
-				break;
-		}
-	}
-
-	closedir(dirp);
-
-	return result;
-}
-
-/* determines facility to use with syslog */
-int get_log_facility(char *varvalue)
-{
-
-	if (!strcmp(varvalue, "kern"))
-		log_facility = LOG_KERN;
-	else if (!strcmp(varvalue, "user"))
-		log_facility = LOG_USER;
-	else if (!strcmp(varvalue, "mail"))
-		log_facility = LOG_MAIL;
-	else if (!strcmp(varvalue, "daemon"))
-		log_facility = LOG_DAEMON;
-	else if (!strcmp(varvalue, "auth"))
-		log_facility = LOG_AUTH;
-	else if (!strcmp(varvalue, "syslog"))
-		log_facility = LOG_SYSLOG;
-	else if (!strcmp(varvalue, "lrp"))
-		log_facility = LOG_LPR;
-	else if (!strcmp(varvalue, "news"))
-		log_facility = LOG_NEWS;
-	else if (!strcmp(varvalue, "uucp"))
-		log_facility = LOG_UUCP;
-	else if (!strcmp(varvalue, "cron"))
-		log_facility = LOG_CRON;
-	else if (!strcmp(varvalue, "authpriv"))
-		log_facility = LOG_AUTHPRIV;
-	else if (!strcmp(varvalue, "ftp"))
-		log_facility = LOG_FTP;
-	else if (!strcmp(varvalue, "local0"))
-		log_facility = LOG_LOCAL0;
-	else if (!strcmp(varvalue, "local1"))
-		log_facility = LOG_LOCAL1;
-	else if (!strcmp(varvalue, "local2"))
-		log_facility = LOG_LOCAL2;
-	else if (!strcmp(varvalue, "local3"))
-		log_facility = LOG_LOCAL3;
-	else if (!strcmp(varvalue, "local4"))
-		log_facility = LOG_LOCAL4;
-	else if (!strcmp(varvalue, "local5"))
-		log_facility = LOG_LOCAL5;
-	else if (!strcmp(varvalue, "local6"))
-		log_facility = LOG_LOCAL6;
-	else if (!strcmp(varvalue, "local7"))
-		log_facility = LOG_LOCAL7;
-	else {
-		log_facility = LOG_DAEMON;
-		return ERROR;
-	}
-
-	return OK;
 }
 
 /* adds a new command definition from the config file to the list in memory */
@@ -1170,76 +1518,6 @@ void wait_for_connections(void)
 	close(sock);
 
 	return;
-}
-
-/* checks to see if a given host is allowed to talk to us */
-int is_an_allowed_host(char *connecting_host)
-{
-	char *temp_buffer = NULL;
-	char *temp_ptr = NULL;
-	int result = 0;
-	struct hostent *myhost;
-	char **pptr = NULL;
-	char *save_connecting_host = NULL;
-	struct in_addr addr;
-
-	/* make sure we have something */
-	if (connecting_host == NULL)
-		return 0;
-	if (allowed_hosts == NULL)
-		return 1;
-
-	if ((temp_buffer = strdup(allowed_hosts)) == NULL)
-		return 0;
-
-	/* try and match IP addresses first */
-	for (temp_ptr = strtok(temp_buffer, ","); temp_ptr != NULL;
-	     temp_ptr = strtok(NULL, ",")) {
-
-		if (!strcmp(connecting_host, temp_ptr)) {
-			result = 1;
-			break;
-		}
-	}
-
-	/* try DNS lookups if needed */
-	if (result == 0) {
-
-		free(temp_buffer);
-		if ((temp_buffer = strdup(allowed_hosts)) == NULL)
-			return 0;
-
-		save_connecting_host = strdup(connecting_host);
-		for (temp_ptr = strtok(temp_buffer, ","); temp_ptr != NULL;
-		     temp_ptr = strtok(NULL, ",")) {
-
-			myhost = gethostbyname(temp_ptr);
-			if (myhost != NULL) {
-
-				/* check all addresses for the host... */
-				for (pptr = myhost->h_addr_list; *pptr != NULL;
-				     pptr++) {
-					memcpy(&addr, *pptr, sizeof(addr));
-					if (!strcmp
-					    (save_connecting_host,
-					     inet_ntoa(addr))) {
-						result = 1;
-						break;
-					}
-				}
-			}
-
-			if (result == 1)
-				break;
-		}
-
-		strcpy(connecting_host, save_connecting_host);
-		free(save_connecting_host);
-	}
-
-	free(temp_buffer);
-
-	return result;
 }
 
 /* handles a client connection */
@@ -1875,283 +2153,4 @@ void sighandler(int sig)
 	}
 
 	return;
-}
-
-/*
- * Sighandler for children (QUIT,HUP,TERM).
- * XXX: No point "Freeing memory" right before we exit.
- */
-void child_sighandler(int __attribute__((unused)) sig)
-{
-	exit(0);
-}
-
-/* tests whether or not a client request is valid */
-int validate_request(packet * pkt)
-{
-	u_int32_t packet_crc32;
-	u_int32_t calculated_crc32;
-	char *ptr;
-#ifdef ENABLE_COMMAND_ARGUMENTS
-	int x;
-#endif
-
-	/***** DECRYPT REQUEST ******/
-
-	/* check the crc 32 value */
-	packet_crc32 = ntohl(pkt->crc32_value);
-	pkt->crc32_value = 0L;
-	calculated_crc32 = calculate_crc32((char *)pkt, sizeof(packet));
-	if (packet_crc32 != calculated_crc32) {
-		syslog(LOG_ERR, "Error: Request packet had invalid CRC32.");
-		return ERROR;
-	}
-
-	/* make sure this is the right type of packet */
-	if (ntohs(pkt->packet_type) != QUERY_PACKET
-	    || ntohs(pkt->packet_version) != NRPE_PACKET_VERSION_2) {
-		syslog(LOG_ERR,
-		       "Error: Request packet type/version was invalid!");
-		return ERROR;
-	}
-
-	/* make sure buffer is terminated */
-	pkt->buffer[MAX_PACKETBUFFER_LENGTH - 1] = '\x0';
-
-	/* client must send some kind of request */
-	if (!strcmp(pkt->buffer, "")) {
-		syslog(LOG_ERR, "Error: Request contained no query!");
-		return ERROR;
-	}
-
-	/* make sure request doesn't contain nasties */
-	if (contains_nasty_metachars(pkt->buffer) == TRUE) {
-		syslog(LOG_ERR, "Error: Request contained illegal metachars!");
-		return ERROR;
-	}
-
-	/* make sure the request doesn't contain arguments */
-	if (strchr(pkt->buffer, '!')) {
-#ifdef ENABLE_COMMAND_ARGUMENTS
-		if (allow_arguments == FALSE) {
-			syslog(LOG_ERR,
-			       "Error: Request contained command arguments, but argument option is not enabled!");
-			return ERROR;
-		}
-#else
-		syslog(LOG_ERR, "Error: Request contained command arguments!");
-		return ERROR;
-#endif
-	}
-
-	/* get command name */
-#ifdef ENABLE_COMMAND_ARGUMENTS
-	ptr = strtok(pkt->buffer, "!");
-#else
-	ptr = pkt->buffer;
-#endif
-	command_name = strdup(ptr);
-	if (command_name == NULL) {
-		syslog(LOG_ERR, "Error: Memory allocation failed");
-		return ERROR;
-	}
-#ifdef ENABLE_COMMAND_ARGUMENTS
-	/* get command arguments */
-	if (allow_arguments == TRUE) {
-
-		for (x = 0; x < MAX_COMMAND_ARGUMENTS; x++) {
-			ptr = strtok(NULL, "!");
-			if (ptr == NULL)
-				break;
-			macro_argv[x] = strdup(ptr);
-			if (macro_argv[x] == NULL) {
-				syslog(LOG_ERR,
-				       "Error: Memory allocation failed");
-				return ERROR;
-			}
-			if (!strcmp(macro_argv[x], "")) {
-				syslog(LOG_ERR,
-				       "Error: Request contained an empty command argument");
-				return ERROR;
-			}
-		}
-	}
-#endif
-
-	return OK;
-}
-
-/* tests whether a buffer contains illegal metachars */
-int contains_nasty_metachars(char *str)
-{
-	int result;
-
-	if (str == NULL)
-		return FALSE;
-
-	result = strcspn(str, NASTY_METACHARS);
-	if (result != strlen(str))
-		return TRUE;
-
-	return FALSE;
-}
-
-/* replace macros in buffer */
-int process_macros(char *input_buffer, char *output_buffer, int buffer_length)
-{
-	char *temp_buffer;
-	int in_macro;
-	int arg_index = 0;
-	char *selected_macro = NULL;
-
-	strcpy(output_buffer, "");
-
-	in_macro = FALSE;
-
-	for (temp_buffer = my_strsep(&input_buffer, "$"); temp_buffer != NULL;
-	     temp_buffer = my_strsep(&input_buffer, "$")) {
-
-		selected_macro = NULL;
-
-		if (in_macro == FALSE) {
-			if (strlen(output_buffer) + strlen(temp_buffer) <
-			    buffer_length - 1) {
-				strncat(output_buffer, temp_buffer,
-					buffer_length - strlen(output_buffer) -
-					1);
-				output_buffer[buffer_length - 1] = '\x0';
-			}
-			in_macro = TRUE;
-		} else {
-
-			if (strlen(output_buffer) + strlen(temp_buffer) <
-			    buffer_length - 1) {
-
-				/* argument macro */
-				if (strstr(temp_buffer, "ARG") == temp_buffer) {
-					arg_index = atoi(temp_buffer + 3);
-					if (arg_index >= 1
-					    && arg_index <=
-					    MAX_COMMAND_ARGUMENTS)
-						selected_macro =
-						    macro_argv[arg_index - 1];
-				}
-
-				/* an escaped $ is done by specifying two $$ next to each other */
-				else if (!strcmp(temp_buffer, "")) {
-					strncat(output_buffer, "$",
-						buffer_length -
-						strlen(output_buffer) - 1);
-				}
-
-				/* a non-macro, just some user-defined string between two $s */
-				else {
-					strncat(output_buffer, "$",
-						buffer_length -
-						strlen(output_buffer) - 1);
-					output_buffer[buffer_length - 1] =
-					    '\x0';
-					strncat(output_buffer, temp_buffer,
-						buffer_length -
-						strlen(output_buffer) - 1);
-					output_buffer[buffer_length - 1] =
-					    '\x0';
-					strncat(output_buffer, "$",
-						buffer_length -
-						strlen(output_buffer) - 1);
-				}
-
-				/* insert macro */
-				if (selected_macro != NULL)
-					strncat(output_buffer,
-						(selected_macro ==
-						 NULL) ? "" : selected_macro,
-						buffer_length -
-						strlen(output_buffer) - 1);
-
-				output_buffer[buffer_length - 1] = '\x0';
-			}
-
-			in_macro = FALSE;
-		}
-	}
-
-	return OK;
-}
-
-/* process command line arguments */
-int process_arguments(int argc, char **argv)
-{
-	char optchars[MAX_INPUT_BUFFER];
-	int c = 1;
-	int have_mode = FALSE;
-
-#ifdef HAVE_GETOPT_LONG
-	int option_index = 0;
-	static struct option long_options[] = {
-		{"config", required_argument, 0, 'c'},
-		{"inetd", no_argument, 0, 'i'},
-		{"daemon", no_argument, 0, 'd'},
-		{"no-ssl", no_argument, 0, 'n'},
-		{"help", no_argument, 0, 'h'},
-		{"license", no_argument, 0, 'l'},
-		{0, 0, 0, 0}
-	};
-#endif
-
-	/* no options were supplied */
-	if (argc < 2)
-		return ERROR;
-
-	snprintf(optchars, MAX_INPUT_BUFFER, "c:hVldin");
-
-	while (1) {
-#ifdef HAVE_GETOPT_LONG
-		c = getopt_long(argc, argv, optchars, long_options,
-				&option_index);
-#else
-		c = getopt(argc, argv, optchars);
-#endif
-		if (c == -1 || c == EOF)
-			break;
-
-		/* process all arguments */
-		switch (c) {
-
-		case '?':
-		case 'h':
-			show_help = TRUE;
-			break;
-		case 'V':
-			show_version = TRUE;
-			break;
-		case 'l':
-			show_license = TRUE;
-			break;
-		case 'c':
-			strncpy(config_file, optarg, sizeof(config_file));
-			config_file[sizeof(config_file) - 1] = '\x0';
-			break;
-		case 'd':
-			use_inetd = FALSE;
-			have_mode = TRUE;
-			break;
-		case 'i':
-			use_inetd = TRUE;
-			have_mode = TRUE;
-			break;
-		case 'n':
-			use_ssl = FALSE;
-			break;
-		default:
-			return ERROR;
-			break;
-		}
-	}
-
-	/* bail if we didn't get required args */
-	if (have_mode == FALSE)
-		return ERROR;
-
-	return OK;
 }

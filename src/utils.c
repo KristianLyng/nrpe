@@ -236,7 +236,13 @@ int sendall(int s, char *buf, int *len)
 	return n == -1 ? -1 : 0;
 }
 
-/* receives all data - modelled after sendall() */
+/*
+ * receives all data - modelled after sendall()
+ *
+ * FIXME: Should use SO_RCVTIMEOUT if applicable.
+ * The sleep(1)-way is inherently slow and wasteful. If we're going to
+ * wait, we might as well block.
+ */
 int recvall(int s, char *buf, int *len, int timeout)
 {
 	int total = 0;
