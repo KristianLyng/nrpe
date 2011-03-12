@@ -1,9 +1,9 @@
 Source: nagios-nrpe
 Section: net
 Priority: optional
-Maintainer: Debian Nagios Maintainer Group <pkg-nagios-devel@lists.alioth.debian.org>
-Uploaders: sean finney <seanius@debian.org>, Jason Thomas <jason@debian.org>, Alexander Wirt <formorer@debian.org>, Luk Claes <luk@debian.org>
-Build-Depends: debhelper (>= 7.0.0), openssl, dpatch, libssl-dev, libwrap0-dev, autotools-dev
+Maintainer: Kristian Lyngstol <kristian@bohemians.org>
+Uploaders: Kristian Lyngstol <kristian@bohemians.org>
+Build-Depends: debhelper (>= 7.0.0), openssl, pkg-config, dpatch, libssl-dev, libwrap0-dev, autotools-dev
 Standards-Version: 3.8.2
 
 Package: nagios-nrpe-server

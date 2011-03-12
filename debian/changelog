@@ -1,3 +1,12 @@
+nagios-nrpe (3.0-1~alpha1~kly2~lucid) lucid; urgency=low
+
+  * Non-maintainer upload.
+  * New "side-stream"-version
+  * Add rudimentary IPv6-support
+  * Re-factoring, cleanups, misc
+
+ -- Kristian Lyngstol <kristian@bohemians.org>  Sat, 12 Mar 2011 00:48:42 +0100
+
 nagios-nrpe (2.12-4) unstable; urgency=low
 
   * Build against libwrap0-dev (Closes: #412705)

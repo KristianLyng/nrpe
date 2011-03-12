@@ -1,3 +1,3 @@
 SUBDIRS = src
 
-EXTRA_DIST = autogen.sh README
+EXTRA_DIST = autogen.sh README.rst LEGAL README.SSL SECURITY

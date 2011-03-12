@@ -8,7 +8,7 @@ AC_CONFIG_HEADERS([config.h])
 
 AM_INIT_AUTOMAKE(nrpe, 3.0, [-Wall -Werror foreign])
 AM_CFLAGS="-Wall -Werror"
-PKG_CHECK_MODULES([SSL], [openssl],[AC_DEFINE([HAVE_SSL],[1],[Define we have SSL])],[AC_MSG_ERROR([nrpe requires ssl.])])
+PKG_CHECK_MODULES([libssl], [libssl],[AC_DEFINE([HAVE_SSL],[1],[Define we have SSL])],[AC_MSG_ERROR([nrpe requires libssl.])])
 
 # Checks for programs.
 AC_PROG_CC

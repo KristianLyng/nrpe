@@ -172,6 +172,7 @@ connection_timeout=300
 #include_dir=<somedirectory>
 #include_dir=<someotherdirectory>
 
+include_dir=/etc/nagios/nrpe.d/
 
 
 # COMMAND DEFINITIONS
