@@ -1,3 +1,10 @@
+nagios-nrpe (3.0-1~alpha1~kly3~squeeze1) stable; urgency=low
+
+  * Non-maintainer upload.
+  * Report connect-errors properly
+
+ -- Kristian Lyngstol <kristian@bohemians.org>  Sat, 12 Mar 2011 12:11:32 +0100
+
 nagios-nrpe (3.0-1~alpha1~kly2~lucid) lucid; urgency=low
 
   * Non-maintainer upload.
