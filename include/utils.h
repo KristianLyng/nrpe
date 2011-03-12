@@ -34,6 +34,10 @@
 
 #include "config.h"
 
+void exit_warn(const char *fmt, ...);
+void exit_crit(const char *fmt, ...);
+void exit_unknown(const char *fmt, ...);
+
 void generate_crc32_table(void);
 unsigned long calculate_crc32(char *, int);
 

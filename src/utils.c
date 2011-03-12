@@ -127,7 +127,7 @@ void randomize_buffer(char *buffer, int buffer_size)
  * Nagios ignores stderr and interprets return-code 2 as critical and 1 as
  * warning.
  */
-static void exit_crit(const char *fmt, ...)
+void exit_crit(const char *fmt, ...)
 {
 	va_list ap;
 	fprintf(stdout,"CRITICAL: ");
@@ -138,7 +138,7 @@ static void exit_crit(const char *fmt, ...)
 	exit(2);
 }
 
-static void exit_warn(const char *fmt, ...)
+void exit_warn(const char *fmt, ...)
 {
 	va_list ap;
 	fprintf(stdout,"WARNING: ");
@@ -147,6 +147,17 @@ static void exit_warn(const char *fmt, ...)
 	va_end(ap);
 	fprintf(stdout, "\n");
 	exit(1);
+}
+
+void exit_unknown(const char *fmt, ...)
+{
+	va_list ap;
+	fprintf(stdout,"UNKNOWN: ");
+	va_start(ap, fmt);
+	vfprintf(stdout, fmt, ap);
+	va_end(ap);
+	fprintf(stdout, "\n");
+	exit(3);
 }
 
 /*
