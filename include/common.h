@@ -25,11 +25,7 @@
 
 #include <stdint.h>
 
-#define PROGRAM_VERSION "2.12"
-#define MODIFICATION_DATE "03-10-2008"
 
-#define DEFAULT_SERVER_PORT	5666
-#define NRPE_LOG_FACILITY	"daemon"
 #define OK		0
 #define ERROR		-1
 
@@ -41,18 +37,6 @@
 #define STATE_WARNING 	1
 #define STATE_OK       	0
 
-#define DEFAULT_SOCKET_TIMEOUT	10	/* timeout after 10 seconds */
-#define DEFAULT_CONNECTION_TIMEOUT 300	/* timeout if daemon is waiting for connection more than this time */
-
-#define MAX_INPUT_BUFFER	2048	/* max size of most buffers we use */
-#define MAX_FILENAME_LENGTH     256
-
-#define MAX_HOST_ADDRESS_LENGTH	256	/* max size of a host address */
-
-#define NRPE_HELLO_COMMAND      "_NRPE_CHECK"
-
-#define MAX_COMMAND_ARGUMENTS   16
-
 /**************** PACKET STRUCTURE DEFINITION **********/
 
 #define QUERY_PACKET		1	/* id code for a packet containing a query */
@@ -62,7 +46,6 @@
 #define NRPE_PACKET_VERSION_2   2
 #define NRPE_PACKET_VERSION_1	1	/* older packet version identifiers (no longer supported) */
 
-#define MAX_PACKETBUFFER_LENGTH	1024	/* max amount of data we'll send in one query/response */
 
 typedef struct packet_struct {
 	int16_t packet_version;

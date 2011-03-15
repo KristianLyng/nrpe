@@ -74,16 +74,81 @@ AC_ARG_ENABLE(stack-protector,
 	AS_HELP_STRING([--enable-stack-protector],[enable stack protector (default is NO)]),
 	CFLAGS="${CFLAGS} -fstack-protector-all")
 
-# --enable-tests
-AC_ARG_ENABLE(tests,
-	AS_HELP_STRING([--enable-tests],[build test programs (default is NO)]))
-AM_CONDITIONAL([ENABLE_TESTS], [test x$enable_tests = xyes])
-
 # --enable-werror
 AC_ARG_ENABLE(werror,
 	AS_HELP_STRING([--enable-werror],[use -Werror (default is NO)]),
 	CFLAGS="${CFLAGS} -Werror")
 
+AC_ARG_WITH([default-port],
+	AS_HELP_STRING([--with-default-portl],
+		[set the default port used by the nrpe-server and plugin@<:@default=5666@:>@]),
+	[],
+	[with_default_port=5666])
+
+AC_ARG_WITH([default-socket-timeout],
+	AS_HELP_STRING([--with-default-socket-timeout],
+		[set the default socket timeout in seconds @<:@default=10@:>@]),
+	[],
+	[with_default_socket_timeout=10])
+
+AC_ARG_WITH([default-connection-timeout],
+	AS_HELP_STRING([--with-default-connection-timeout],
+		[set the default connection timeout in seconds @<:@default=300@:>@]),
+	[],
+	[with_default_connection_timeout=300])
+
+AC_ARG_WITH([with-nrpe-hello],
+	AS_HELP_STRING([--with-nrpe-hello],
+		[set the nrpe HELLO-command @<:@default=_NRPE_CHECK@:>@]),
+	[],
+	[with_nrpe_hello="_NRPE_CHECK"])
+
+AC_ARG_WITH([with-log-facility],
+	AS_HELP_STRING([--with-log-facility],
+		[set the log facility used by nrpe @<:@default=daemon@:>@]),
+	[],
+	[with_log_facility="daemon"])
+
+AC_ARG_WITH([with-max-filename-length],
+	AS_HELP_STRING([--with-max-filename-length],
+		[maximum filename length @<:@default=256@:>@]),
+	[],
+	[with_max_filename_length=256])
+
+AC_ARG_WITH([with-packetbuffer-length],
+	AS_HELP_STRING([--with-max-packetbuffer-length],
+		[maxium amount of packet data sent in a single query/response @<:@default=1024@:>@]),
+	[],
+	[with_max_packetbuffer_length=1024])
+
+AC_ARG_WITH([with-max-command-arguments],
+	AS_HELP_STRING([--with-max-command-arguments],
+		[maximum command arguments allowed @<:@default=16@:>@]),
+	[],
+	[with_max_command_arguments=16])
+
+AC_ARG_WITH([with-max-input-buffer],
+	AS_HELP_STRING([--with-max-input-buffer],
+		[set the max size of most internal buffers @<:@default=2048@:>@]),
+	[],
+	[with_max_input_buffer=2048])
+
+AC_ARG_WITH([with-max-host-address-length],
+	AS_HELP_STRING([--with-max-host-address-length],
+		[set the max size allowed for host addresses @<:@default=256@:>@]),
+	[],
+	[with_max_host_address_length=256])
+
+AC_DEFINE_UNQUOTED(DEFAULT_SERVER_PORT, [$with_default_port],[default port])
+AC_DEFINE_UNQUOTED(NRPE_LOG_FACILITY,["$with_log_facility"],[log facility])
+AC_DEFINE_UNQUOTED(DEFAULT_SOCKET_TIMEOUT,[$with_default_socket_timeout],[default socket timeout in seconds])
+AC_DEFINE_UNQUOTED(DEFAULT_CONNECTION_TIMEOUT,[$with_default_connection_timeout],[connection timeout in seconds])
+AC_DEFINE_UNQUOTED(NRPE_HELLO_COMMAND,["$with_nrpe_hello"],[hello-command])
+AC_DEFINE_UNQUOTED(MAX_FILENAME_LENGTH,[$with_max_filename_length],[Maximum filename length])
+AC_DEFINE_UNQUOTED(MAX_PACKETBUFFER_LENGTH,[$with_max_packetbuffer_length],[Maximum packetsize (may break protocol-compatibility)])
+AC_DEFINE_UNQUOTED(MAX_COMMAND_ARGUMENTS,[$with_max_command_arguments],[Maximum amount of command arguments])
+AC_DEFINE_UNQUOTED(MAX_INPUT_BUFFER,[$with_max_input_buffer],[Input buffer size])
+AC_DEFINE_UNQUOTED(MAX_HOST_ADDRESS_LENGTH,[$with_max_host_address_length],[Maximum length of addresses])
 
 
 AC_CONFIG_FILES([Makefile

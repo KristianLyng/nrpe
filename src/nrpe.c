@@ -921,7 +921,7 @@ int main(int argc, char **argv)
 	/* set some environment variables */
 	asprintf(&env_string, "NRPE_MULTILINESUPPORT=1");
 	putenv(env_string);
-	asprintf(&env_string, "NRPE_PROGRAMVERSION=%s", PROGRAM_VERSION);
+	asprintf(&env_string, "NRPE_PROGRAMVERSION=" PACKAGE_VERSION);
 	putenv(env_string);
 
 	/* process command-line args */
@@ -934,8 +934,7 @@ int main(int argc, char **argv)
 		printf("NRPE - Nagios Remote Plugin Executor\n");
 		printf
 		    ("Copyright (c) 1999-2008 Ethan Galstad (nagios@nagios.org)\n");
-		printf("Version: %s\n", PROGRAM_VERSION);
-		printf("Last Modified: %s\n", MODIFICATION_DATE);
+		printf("Version: " PACKAGE_VERSION "\n");
 		printf("License: GPL v2 with exemptions (-l for more info)\n");
 #ifdef HAVE_SSL
 		printf
@@ -1686,7 +1685,7 @@ void handle_connection(int sock)
 	/* if this is the version check command, just spew it out */
 	if (!strcmp(command_name, NRPE_HELLO_COMMAND)) {
 
-		snprintf(buffer, sizeof(buffer), "NRPE v%s", PROGRAM_VERSION);
+		snprintf(buffer, sizeof(buffer), "NRPE v" PACKAGE_VERSION);
 		buffer[sizeof(buffer) - 1] = '\x0';
 
 		/* log info to syslog facility */

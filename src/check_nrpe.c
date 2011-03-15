@@ -305,8 +305,7 @@ int main(int argc, char **argv)
 		printf("NRPE Plugin for Nagios\n");
 		printf
 		    ("Copyright (c) 1999-2008 Ethan Galstad (nagios@nagios.org)\n");
-		printf("Version: %s\n", PROGRAM_VERSION);
-		printf("Last Modified: %s\n", MODIFICATION_DATE);
+		printf("Version: " PACKAGE_VERSION "\n");
 		printf("License: GPL v2 with exemptions (-l for more info)\n");
 #ifdef HAVE_SSL
 		printf
